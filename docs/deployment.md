@@ -68,7 +68,7 @@ On the Function App:
 
 ## 🔁 Slug Sync Timer
 
-The `slug_sync_timer` function runs weekly at **Sunday 11:59 PM UTC** to refresh the slug mappings from GitHub. This is defined via a `function.json` timer trigger.
+The `slug_sync_timer` function runs weekly at **Sunday 4:00 AM UTC** to refresh the slug mappings from GitHub. This is defined via a `function.json` timer trigger.
 
 ---
 
