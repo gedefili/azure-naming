@@ -19,6 +19,12 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """HTTP endpoint to claim a name.
+
+    Validates the caller's role using Entra ID claims and then
+    records the name as claimed in Table Storage. An audit entry is
+    created so administrators can track who claimed the name and when.
+    """
     logging.info("[claim_name] Processing claim request with RBAC.")
 
     try:

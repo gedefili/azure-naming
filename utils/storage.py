@@ -1,3 +1,9 @@
+# File: utils/storage.py
+# Version: 1.0.0
+# Last Modified: 2025-07-24
+# Authors: ChatGPT & Geoff DeFilippi
+# Summary: Helpers for interacting with Azure Table Storage for name claims.
+
 import os
 from datetime import datetime
 from typing import Any

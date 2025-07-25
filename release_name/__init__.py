@@ -19,6 +19,11 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """HTTP endpoint to release a previously claimed name.
+
+    Caller must have at least the 'user' role. The entry is
+    marked as available again and an audit record is written.
+    """
     logging.info("[release_name] Processing release request with RBAC.")
 
     try:

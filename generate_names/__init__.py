@@ -15,6 +15,7 @@ from utils.storage import check_name_exists, claim_name
 from utils.validation import validate_name
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """HTTP endpoint to generate and claim a compliant resource name."""
     logging.info("[generate_name] Processing request to generate a compliant name.")
 
     try:

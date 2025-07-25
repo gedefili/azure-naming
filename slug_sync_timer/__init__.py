@@ -16,6 +16,7 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _slug_table = _table_service.get_table_client(SLUG_TABLE_NAME)
 
 def main(mytimer) -> None:
+    """Timer triggered function to sync slug mappings weekly."""
     logging.info("[slug_sync_timer] Scheduled slug sync triggered.")
 
     try:
