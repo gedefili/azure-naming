@@ -1,5 +1,5 @@
 # File: sanmar_naming/audit_bulk/__init__.py
-# Version: 1.2.0
+# Version: 1.1.0
 # Last Modified: 2025-07-24
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Audits claimed/released Azure names. Enforces RBAC via Entra ID roles and group membership.
@@ -9,7 +9,13 @@ import json
 import azure.functions as func
 from azure.data.tables import TableServiceClient
 import os
-from utils.auth import require_role, is_authorized, AuthError
+from utils.auth import (
+    parse_client_principal,
+    get_user_id,
+    get_user_roles,
+    is_authenticated_user,
+    is_authorized
+)
 
 AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
 NAMES_TABLE_NAME = "GeneratedNames"
@@ -20,11 +26,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("[audit_name] Starting RBAC-secured audit check.")
 
     try:
-        # 'user' role grants access to audit names that the user claimed or released.
-        # Elevated roles like 'manager' and 'admin' bypass this restriction.
-        user_id, user_roles = require_role(req.headers, min_role="user")
-    except AuthError as e:
-        return func.HttpResponse(str(e), status_code=e.status)
+        principal = parse_client_principal(req.headers)
+        user_id = get_user_id(principal)
+        user_roles = get_user_roles(principal)
+        if not is_authenticated_user(user_roles):
+            return func.HttpResponse("Unauthorized (missing user role)", status_code=403)
+    except Exception as e:
+        logging.exception("Authentication failed.")
+        return func.HttpResponse("Authentication error", status_code=401)
 
     region = req.params.get("region")
     environment = req.params.get("environment")
@@ -40,7 +49,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # RBAC check: verify caller has access
         if not is_authorized(user_roles, user_id, entity.get("ClaimedBy"), entity.get("ReleasedBy")):
-            logging.warning(f"Access denied: user {user_id} lacks permission for name '{name}' in {partition_key}.")
             return func.HttpResponse("Forbidden: not authorized to view this name.", status_code=403)
 
         audit_info = {
