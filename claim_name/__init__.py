@@ -11,6 +11,7 @@ import json
 import os
 from datetime import datetime
 from utils.auth import require_role, AuthError
+from utils.audit_logs import write_audit_log
 
 AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
 NAMES_TABLE_NAME = "ClaimedNames"
@@ -55,6 +56,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         }
 
         _names_table.upsert_entity(mode="Merge", entity=entity)
+        write_audit_log(name, user_id, "claimed", f"{region}-{environment}")
 
         return func.HttpResponse("Name claimed successfully.", status_code=200)
 
