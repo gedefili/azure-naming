@@ -11,6 +11,7 @@ import json
 import os
 from datetime import datetime
 from utils.auth import require_role, AuthError
+from utils.audit_logs import write_audit_log
 
 AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
 NAMES_TABLE_NAME = "GeneratedNames"
@@ -45,6 +46,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         entity["PreviousUse"] = entity.get("ClaimedBy")
 
         _names_table.update_entity(entity=entity, mode="Replace")
+        write_audit_log(name, user_id, "released", reason)
 
         return func.HttpResponse("Name released successfully.", status_code=200)
 
