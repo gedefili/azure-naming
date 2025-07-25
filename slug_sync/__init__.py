@@ -1,0 +1,1 @@
+# Manual slug sync trigger

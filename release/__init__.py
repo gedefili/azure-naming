@@ -1,0 +1,1 @@
+# Release function entrypoint
