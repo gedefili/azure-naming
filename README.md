@@ -10,9 +10,9 @@ This project provides a secure, auditable, and standards-compliant Azure naming 
 
 | Folder             | Purpose                                         |
 | ------------------ | ----------------------------------------------- |
-| `claim/`           | Claim name endpoint                             |
-| `release/`         | Release a name                                  |
-| `audit/`           | Audit single name history                       |
+| `claim_name/`      | Claim name endpoint                             |
+| `release_name/`    | Release a name                                  |
+| `audit_name/`      | Audit single name history                       |
 | `audit_bulk/`      | Audit by user, project, or time range           |
 | `slug_sync/`       | Pull slugs from GitHub, sync to Table Storage   |
 | `slug_sync_timer/` | Timer function for weekly slug updates          |
