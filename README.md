@@ -2,7 +2,19 @@
 
 This project provides a secure, auditable, and standards-compliant Azure naming service. It uses Azure Functions, Table Storage, and Entra ID for identity and access control.
 
-![Architecture Diagram](assets/architecture-diagram.png)
+<!-- Architecture Diagram -->
+```mermaid
+graph TD
+    User[User] -->|"HTTPS request"| AzureFn["Azure Functions"]
+    AzureFn -->|"Validate token"| EntraID["Entra ID"]
+    AzureFn -->|"Read/Write"| Table["Azure Table Storage"]
+    AzureFn -->|"Fetch slugs"| GitHub["GitHub"]
+    Timer["slug_sync_timer"] -->|"Weekly trigger"| AzureFn
+    Table --> ClaimedNames[("ClaimedNames")]
+    Table --> AuditLogs[("AuditLogs")]
+    Table --> SlugMappings[("SlugMappings")]
+    GitHub -->|"Slug specs"| SlugMappings
+```
 
 ---
 

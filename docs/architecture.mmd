@@ -1,0 +1,12 @@
+```mermaid
+graph TD
+    User[User] -->|"HTTPS request"| AzureFn["Azure Functions"]
+    AzureFn -->|"Validate token"| EntraID["Entra ID"]
+    AzureFn -->|"Read/Write"| Table["Azure Table Storage"]
+    AzureFn -->|"Fetch slugs"| GitHub["GitHub"]
+    Timer["slug_sync_timer"] -->|"Weekly trigger"| AzureFn
+    Table --> ClaimedNames[("ClaimedNames")]
+    Table --> AuditLogs[("AuditLogs")]
+    Table --> SlugMappings[("SlugMappings")]
+    GitHub -->|"Slug specs"| SlugMappings
+``` 
