@@ -10,7 +10,7 @@ from azure.data.tables import TableServiceClient
 from azure.core.exceptions import ResourceExistsError
 from utils.slug_fetcher import get_all_remote_slugs
 
-TABLE_NAME = "SlugDefinitions"
+TABLE_NAME = "SlugMappings"
 PARTITION_KEY = "slug"
 
 
