@@ -1,3 +1,8 @@
+# File: utils/slug.py
+# Version: 1.0.0
+# Last Modified: 2025-07-24
+# Authors: ChatGPT & Geoff DeFilippi
+# Summary: Lookup slug short codes for Azure resource types in Table Storage.
 """Lookup slug short codes for Azure resource types."""
 
 import logging

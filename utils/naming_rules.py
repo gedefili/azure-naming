@@ -1,3 +1,8 @@
+# File: utils/naming_rules.py
+# Version: 1.0.0
+# Last Modified: 2025-07-24
+# Authors: ChatGPT & Geoff DeFilippi
+# Summary: Provides simple loader for resource naming rules.
 """Simple loader for resource naming rules."""
 
 from typing import Dict

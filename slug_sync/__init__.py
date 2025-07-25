@@ -18,6 +18,11 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _slug_table = _table_service.get_table_client(SLUG_TABLE_NAME)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """Synchronize slug mappings via an authenticated HTTP call.
+
+    Fetches slug definitions from GitHub and updates the Azure Table
+    holding slug mappings. Intended for manual or ad-hoc syncs.
+    """
     logging.info("[slug_sync] Starting slug synchronization from GitHub source.")
 
     # Enforce RBAC (any authenticated user or higher)

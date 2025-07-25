@@ -23,6 +23,12 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """Retrieve audit information for a single claimed name.
+
+    Only the claimant, releaser, or users with elevated roles may view
+    the audit details. Results include claim/release metadata from
+    Table Storage.
+    """
     logging.info("[audit_name] Starting RBAC-secured audit check.")
 
     try:

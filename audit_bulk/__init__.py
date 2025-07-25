@@ -17,6 +17,11 @@ _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_ST
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    """List audit information for a specific name.
+
+    Enforces role-based access control before returning claim and
+    release metadata stored in Table Storage.
+    """
     logging.info("[audit_name] Starting RBAC-secured audit check.")
 
     try:
