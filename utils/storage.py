@@ -23,7 +23,7 @@ def get_table_client(table_name: str):
 
 def check_name_exists(region: str, environment: str, name: str) -> bool:
     """Return True if the name entity exists and is marked in use."""
-    table = get_table_client("GeneratedNames")
+    table = get_table_client("ClaimedNames")
     partition_key = f"{region.lower()}-{environment.lower()}"
     try:
         entity = table.get_entity(partition_key=partition_key, row_key=name)
@@ -33,8 +33,8 @@ def check_name_exists(region: str, environment: str, name: str) -> bool:
 
 
 def claim_name(region: str, environment: str, name: str, resource_type: str, claimed_by: str) -> None:
-    """Insert or update a claimed name entity in the GeneratedNames table."""
-    table = get_table_client("GeneratedNames")
+    """Insert or update a claimed name entity in the ClaimedNames table."""
+    table = get_table_client("ClaimedNames")
     partition_key = f"{region.lower()}-{environment.lower()}"
     entity = {
         "PartitionKey": partition_key,

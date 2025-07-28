@@ -12,7 +12,7 @@ import os
 from utils.auth import require_role, is_authorized, AuthError
 
 AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
-NAMES_TABLE_NAME = "GeneratedNames"
+NAMES_TABLE_NAME = "ClaimedNames"
 _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_STRING)
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 

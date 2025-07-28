@@ -10,15 +10,13 @@ import azure.functions as func
 from azure.data.tables import TableServiceClient
 import os
 from utils.auth import (
-    parse_client_principal,
-    get_user_id,
-    get_user_roles,
-    is_authenticated_user,
-    is_authorized
+    require_role,
+    is_authorized,
+    AuthError,
 )
 
 AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
-NAMES_TABLE_NAME = "GeneratedNames"
+NAMES_TABLE_NAME = "ClaimedNames"
 _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_STRING)
 _names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
 
@@ -32,14 +30,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("[audit_name] Starting RBAC-secured audit check.")
 
     try:
-        principal = parse_client_principal(req.headers)
-        user_id = get_user_id(principal)
-        user_roles = get_user_roles(principal)
-        if not is_authenticated_user(user_roles):
-            return func.HttpResponse("Unauthorized (missing user role)", status_code=403)
-    except Exception as e:
-        logging.exception("Authentication failed.")
-        return func.HttpResponse("Authentication error", status_code=401)
+        user_id, user_roles = require_role(req.headers, min_role="user")
+    except AuthError as e:
+        return func.HttpResponse(str(e), status_code=e.status)
 
     region = req.params.get("region")
     environment = req.params.get("environment")
