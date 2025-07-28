@@ -8,7 +8,7 @@ from utils.storage import get_table_client
 from datetime import datetime
 from azure.core.exceptions import ResourceNotFoundError
 
-NAME_TABLE = "AuditLogs"
+NAME_TABLE = "ClaimedNames"
 
 def release_name(region: str, environment: str, name: str, released_by: str) -> bool:
     """
