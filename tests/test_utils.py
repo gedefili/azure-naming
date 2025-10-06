@@ -5,6 +5,17 @@ import pytest
 
 from utils import naming_rules, name_generator, validation
 
+import pathlib
+import sys
+
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from utils import name_generator, naming_rules, validation
+
 
 def test_load_naming_rule_default():
     rule = naming_rules.load_naming_rule("virtual_machine")

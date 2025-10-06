@@ -22,31 +22,44 @@ Tokens are validated using Entra ID. Your user must belong to one of the followi
 
 ---
 
-## 📤 Claim a Name
+## 📤 Claim or Generate a Name
 
 **POST** `/api/claim`
+
+You can also call **POST** `/api/generate` if you prefer to keep the claim-specific route separate. Both endpoints validate RBAC, generate a compliant name, persist it, and return the same payload.
 
 ### Body:
 
 ```json
 {
-  "resourceType": "storage_account",
+  "resource_type": "storage_account",
   "environment": "dev",
-  "region": "westus2",
+  "region": "wus2",
   "project": "finance",
-  "purpose": "costreports"
+  "purpose": "costreports",
+  "system": "erp",
+  "index": "01"
 }
 ```
 
-### Returns:
+### Returns (`201 Created`):
 
 ```json
 {
-  "name": "st-sanmar-finance-costreports-dev-wus2"
+  "name": "sanmar-st-finance-costreports-dev-wus2-01",
+  "resourceType": "storage_account",
+  "region": "wus2",
+  "environment": "dev",
+  "slug": "st",
+  "project": "finance",
+  "purpose": "costreports",
+  "system": "erp",
+  "index": "01",
+  "claimedBy": "<user object id>"
 }
 ```
 
-This claims a unique name and stores it as **in use**.
+If the generated name already exists you receive `409 Conflict` so the caller can retry with different optional segments.
 
 ---
 
@@ -108,13 +121,36 @@ Returns the claim/release history for a specific name.
 
 ### Optional Query Parameters:
 
-* `user` (email)
-* `project` (slug)
-* `start` and `end` (ISO 8601 timestamps)
+* `user` – object ID or UPN (defaults to the caller)
+* `project` – project slug stored with the claim
+* `purpose` – purpose slug stored with the claim
+* `region`
+* `environment`
+* `action` – `claimed` or `released`
+* `start` / `end` – ISO 8601 timestamps for filtering by event time
+
+> ℹ️ Querying users other than yourself requires the `manager` or `admin` role.
 
 ### Returns:
 
-An array of claim/release records across names matching the filters.
+```json
+{
+  "results": [
+    {
+      "name": "sanmar-st-finance-costreports-dev-wus2-01",
+      "event_id": "7e2f...",
+      "user": "john@contoso.com",
+      "action": "claimed",
+      "timestamp": "2024-01-10T18:22:31Z",
+      "region": "wus2",
+      "environment": "dev",
+      "project": "finance",
+      "purpose": "costreports",
+      "resource_type": "storage_account"
+    }
+  ]
+}
+```
 
 ---
 

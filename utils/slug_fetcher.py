@@ -4,15 +4,20 @@
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Fetches and parses slugs from the HCL 'defined_specs' file in Azure naming repo.
 
-import requests
-import re
 import logging
+import re
 from typing import Dict
+
+import requests
 
 # Constants
 DEFINED_SPECS_URL = "https://raw.githubusercontent.com/Azure/terraform-azurerm-naming/master/docs/defined_specs"
 
-_slug_pattern = re.compile(r'\s*(\w+)\s*=\s*"([^"]+)"')
+_slug_pattern = re.compile(r"\s*(\w+)\s*=\s*\"([^\"]+)\"")
+
+
+class SlugSourceError(RuntimeError):
+    """Raised when slug definitions cannot be loaded from the upstream source."""
 
 def get_all_remote_slugs() -> Dict[str, str]:
     """
@@ -40,9 +45,9 @@ def get_all_remote_slugs() -> Dict[str, str]:
             full_name, slug = match.groups()
             slug_map[slug] = full_name
 
-        logging.info(f"Parsed {len(slug_map)} slug mappings.")
+        logging.info("Parsed %s slug mappings.", len(slug_map))
         return slug_map
 
-    except Exception as e:
+    except Exception as exc:
         logging.exception("Failed to fetch or parse defined_specs file.")
-        return {}
+        raise SlugSourceError("Unable to load slug definitions from GitHub") from exc
