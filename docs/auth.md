@@ -75,6 +75,16 @@ The `/slug_sync_timer` function **does not** require authentication, as it's int
 
 You may map Entra security groups to roles by resolving group claims in `auth.py`. This is useful if you prefer group-based RBAC instead of App Role Assignments.
 
+Set the following environment variables to the corresponding Entra group object IDs:
+
+| Environment Variable            | Role Mapped |
+| ------------------------------- | ----------- |
+| `AZURE_ROLE_GROUP_USER`         | `user`      |
+| `AZURE_ROLE_GROUP_MANAGER`      | `manager`   |
+| `AZURE_ROLE_GROUP_ADMIN`        | `admin`     |
+
+Only variables that are present are enforced, so you can bootstrap the service with App Roles and gradually add group mappings.
+
 ---
 
 ## 🔍 Logging & Auditing Access

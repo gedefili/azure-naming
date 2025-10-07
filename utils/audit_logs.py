@@ -5,29 +5,30 @@
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Helper for writing claim/release audit entries to Azure Table Storage.
 
-from azure.data.tables import TableServiceClient
-from uuid import uuid4
-from datetime import datetime
-import os
 import logging
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-AZURE_STORAGE_CONN_STRING = os.environ.get("AzureWebJobsStorage")
+try:
+    from azure.core.exceptions import AzureError
+except ImportError:  # pragma: no cover - allow tests without Azure SDK
+    class AzureError(Exception):
+        """Fallback exception when Azure SDK is unavailable."""
+
+from uuid import uuid4
+
+from .storage import get_table_client
+
 AUDIT_TABLE_NAME = "AuditLogs"
 
-_table_service = None
-_audit_table = None
 
-if AZURE_STORAGE_CONN_STRING:
-    try:
-        _table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_STRING)
-        _audit_table = _table_service.get_table_client(AUDIT_TABLE_NAME)
-    except Exception:
-        logging.exception("[audit_logs] Failed to connect to AuditLogs table")
-else:
-    logging.error("[audit_logs] AzureWebJobsStorage not set")
-
-
-def write_audit_log(name: str, user: str, action: str, note: str = "") -> None:
+def write_audit_log(
+    name: str,
+    user: str,
+    action: str,
+    note: str = "",
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
     """Write an entry to the AuditLogs table.
 
     Parameters
@@ -41,20 +42,25 @@ def write_audit_log(name: str, user: str, action: str, note: str = "") -> None:
     note : str, optional
         Additional context message
     """
-    if _audit_table is None:
+    try:
+        audit_table = get_table_client(AUDIT_TABLE_NAME)
+    except RuntimeError:
         logging.error("[audit_logs] Audit table client not initialized")
         return
 
     entity = {
         "PartitionKey": name,
         "RowKey": str(uuid4()),
-        "User": user,
-        "Action": action,
-        "Timestamp": datetime.utcnow().isoformat(),
+        "User": str(user).lower(),
+        "Action": str(action).lower(),
         "Note": note,
+        "EventTime": datetime.utcnow(),
     }
 
+    if metadata:
+        entity.update(metadata)
+
     try:
-        _audit_table.create_entity(entity=entity)
-    except Exception:
+        audit_table.create_entity(entity=entity)
+    except AzureError:
         logging.exception("[audit_logs] Failed to record audit entry")

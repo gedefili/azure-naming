@@ -9,17 +9,23 @@ import base64
 import json
 import logging
 import os
-from typing import List, Dict
+from typing import Dict, List
 
 import jwt
 from jwt import PyJWKClient, InvalidTokenError
 
-# Define known group IDs for Entra roles (replace with real GUIDs from Entra)
-ROLE_GROUPS = {
-    "admin": "<entra-group-id-for-admins>",
-    "manager": "<entra-group-id-for-managers>",
-    "user": "<entra-group-id-for-users>"
-}
+def _load_role_groups() -> Dict[str, str]:
+    """Load Entra group IDs for roles from environment variables."""
+
+    groups: Dict[str, str] = {}
+    for role in ROLE_HIERARCHY:
+        env_var = f"AZURE_ROLE_GROUP_{role.upper()}"
+        group_id = os.environ.get(env_var)
+        if group_id:
+            groups[role] = group_id
+        else:
+            logging.debug("[auth] Role group env var %s not set", env_var)
+    return groups
 
 # JWKS endpoint for validating JWTs
 TENANT_ID = os.environ.get("AZURE_TENANT_ID", "")
@@ -31,6 +37,7 @@ JWKS_URL = (
 )
 
 ROLE_HIERARCHY = ["user", "manager", "admin"]
+ROLE_GROUPS = _load_role_groups()
 
 
 class AuthError(Exception):

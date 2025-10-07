@@ -2,65 +2,110 @@
 # Version: 1.2.0
 # Last Modified: 2025-07-24
 # Authors: ChatGPT & Geoff DeFilippi
-# Summary: Audits claimed/released Azure names. Enforces RBAC via Entra ID roles and group membership.
+# Summary: Provides filtered bulk audit access for name history.
 
-import logging
 import json
-import azure.functions as func
-from azure.data.tables import TableServiceClient
-import os
-from utils.auth import require_role, is_authorized, AuthError
+import logging
+from datetime import datetime
+from typing import List
 
-AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
-NAMES_TABLE_NAME = "ClaimedNames"
-_table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_STRING)
-_names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
+import azure.functions as func
+
+from utils.auth import AuthError, require_role
+from utils.storage import get_table_client
+
+AUDIT_TABLE_NAME = "AuditLogs"
+_ELEVATED_ROLES = {"manager", "admin"}
+
+
+def _escape(value: str) -> str:
+    return value.replace("'", "''")
+
+
+def _build_filter(params: dict) -> str:
+    filters: List[str] = []
+
+    user = params.get("user")
+    if user:
+        filters.append(f"User eq '{_escape(user.lower())}'")
+
+    project = params.get("project")
+    if project:
+        filters.append(f"Project eq '{_escape(project.lower())}'")
+
+    purpose = params.get("purpose")
+    if purpose:
+        filters.append(f"Purpose eq '{_escape(purpose.lower())}'")
+
+    region = params.get("region")
+    if region:
+        filters.append(f"Region eq '{_escape(region.lower())}'")
+
+    environment = params.get("environment")
+    if environment:
+        filters.append(f"Environment eq '{_escape(environment.lower())}'")
+
+    action = params.get("action")
+    if action:
+        filters.append(f"Action eq '{_escape(action.lower())}'")
+
+    start = params.get("start")
+    if start:
+        filters.append(f"EventTime ge datetime'{start}'")
+
+    end = params.get("end")
+    if end:
+        filters.append(f"EventTime le datetime'{end}'")
+
+    return " and ".join(filters)
+
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    """List audit information for a specific name.
+    """List audit information with optional filters."""
 
-    Enforces role-based access control before returning claim and
-    release metadata stored in Table Storage.
-    """
-    logging.info("[audit_name] Starting RBAC-secured audit check.")
+    logging.info("[audit_bulk] Processing bulk audit request.")
 
     try:
-        # 'user' role grants access to audit names that the user claimed or released.
-        # Elevated roles like 'manager' and 'admin' bypass this restriction.
-        user_id, user_roles = require_role(req.headers, min_role="user")
-    except AuthError as e:
-        return func.HttpResponse(str(e), status_code=e.status)
+        user_id, roles = require_role(req.headers, min_role="user")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
 
-    region = req.params.get("region")
-    environment = req.params.get("environment")
-    name = req.params.get("name")
+    filters = req.params
+    target_user = filters.get("user")
 
-    if not region or not environment or not name:
+    if (not target_user or target_user.lower() != user_id.lower()) and not _ELEVATED_ROLES.intersection(roles):
         return func.HttpResponse(
-            "Missing query parameters: region, environment, name.", status_code=400)
+            "Forbidden: elevated role required to query other users.", status_code=403
+        )
 
-    partition_key = f"{region.lower()}-{environment.lower()}"
+    filter_query = _build_filter(filters)
+
     try:
-        entity = _names_table.get_entity(partition_key=partition_key, row_key=name)
-
-        # RBAC check: verify caller has access
-        if not is_authorized(user_roles, user_id, entity.get("ClaimedBy"), entity.get("ReleasedBy")):
-            logging.warning(f"Access denied: user {user_id} lacks permission for name '{name}' in {partition_key}.")
-            return func.HttpResponse("Forbidden: not authorized to view this name.", status_code=403)
-
-        audit_info = {
-            "name": entity["RowKey"],
-            "resource_type": entity.get("ResourceType", "unknown"),
-            "in_use": entity.get("InUse", False),
-            "claimed_by": entity.get("ClaimedBy", None),
-            "claimed_at": entity.get("ClaimedAt", None),
-            "released_by": entity.get("ReleasedBy", None),
-            "released_at": entity.get("ReleasedAt", None),
-            "release_reason": entity.get("ReleaseReason", None),
-            "previous_use": entity.get("PreviousUse", None)
-        }
-        return func.HttpResponse(json.dumps(audit_info), status_code=200, mimetype="application/json")
-
+        table = get_table_client(AUDIT_TABLE_NAME)
+        entities = list(table.query_entities(filter=filter_query) if filter_query else table.list_entities())
     except Exception:
-        logging.exception("Failed to retrieve or authorize audit data.")
-        return func.HttpResponse(f"Audit entry not found or access denied.", status_code=404)
+        logging.exception("[audit_bulk] Failed to query audit logs.")
+        return func.HttpResponse("Error retrieving audit logs.", status_code=500)
+
+    # Sort newest first based on EventTime if present
+    entities.sort(key=lambda e: e.get("EventTime") or datetime.min, reverse=True)
+
+    records = []
+    for entity in entities:
+        records.append(
+            {
+                "name": entity.get("PartitionKey"),
+                "event_id": entity.get("RowKey"),
+                "user": entity.get("User"),
+                "action": entity.get("Action"),
+                "note": entity.get("Note"),
+                "timestamp": (entity.get("EventTime") or datetime.min).isoformat(),
+                "region": entity.get("Region"),
+                "environment": entity.get("Environment"),
+                "project": entity.get("Project"),
+                "purpose": entity.get("Purpose"),
+                "resource_type": entity.get("ResourceType"),
+            }
+        )
+
+    return func.HttpResponse(json.dumps({"results": records}), status_code=200, mimetype="application/json")

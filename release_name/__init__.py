@@ -1,60 +1,80 @@
 # File: sanmar_naming/release_name/__init__.py
-# Version: 1.1.0
+# Version: 1.2.0
 # Last Modified: 2025-07-24
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Releases a name back into the pool with RBAC and auditing support.
 
-import logging
-import azure.functions as func
-from azure.data.tables import TableServiceClient
 import json
-import os
+import logging
 from datetime import datetime
-from utils.auth import require_role, AuthError
-from utils.audit_logs import write_audit_log
 
-AZURE_STORAGE_CONN_STRING = os.environ["AzureWebJobsStorage"]
+import azure.functions as func
+
+from utils.auth import AuthError, is_authorized, require_role
+from utils.audit_logs import write_audit_log
+from utils.storage import get_table_client
+
 NAMES_TABLE_NAME = "ClaimedNames"
-_table_service = TableServiceClient.from_connection_string(AZURE_STORAGE_CONN_STRING)
-_names_table = _table_service.get_table_client(NAMES_TABLE_NAME)
+
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    """HTTP endpoint to release a previously claimed name.
+    """HTTP endpoint to release a previously claimed name."""
 
-    Caller must have at least the 'user' role. The entry is
-    marked as available again and an audit record is written.
-    """
     logging.info("[release_name] Processing release request with RBAC.")
 
     try:
         user_id, user_roles = require_role(req.headers, min_role="user")
-    except AuthError as e:
-        return func.HttpResponse(str(e), status_code=e.status)
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
 
     try:
         data = req.get_json()
-        region = data.get("region")
-        environment = data.get("environment")
-        name = data.get("name")
-        reason = data.get("reason", "not specified")
+    except ValueError:
+        return func.HttpResponse("Invalid JSON payload.", status_code=400)
 
-        if not region or not environment or not name:
-            return func.HttpResponse("Missing required fields.", status_code=400)
+    region = (data.get("region") or "").lower()
+    environment = (data.get("environment") or "").lower()
+    name = (data.get("name") or "").lower()
+    reason = data.get("reason", "not specified")
 
-        partition_key = f"{region.lower()}-{environment.lower()}"
-        entity = _names_table.get_entity(partition_key=partition_key, row_key=name)
+    if not region or not environment or not name:
+        return func.HttpResponse("Missing required fields.", status_code=400)
 
-        entity["InUse"] = False
-        entity["ReleasedBy"] = user_id
-        entity["ReleasedAt"] = datetime.utcnow().isoformat()
-        entity["ReleaseReason"] = reason
-        entity["PreviousUse"] = entity.get("ClaimedBy")
+    partition_key = f"{region}-{environment}"
 
-        _names_table.update_entity(entity=entity, mode="Replace")
-        write_audit_log(name, user_id, "released", reason)
+    try:
+        names_table = get_table_client(NAMES_TABLE_NAME)
+        entity = names_table.get_entity(partition_key=partition_key, row_key=name)
+    except Exception:
+        logging.exception("[release_name] Name not found during release.")
+        return func.HttpResponse("Name not found.", status_code=404)
 
-        return func.HttpResponse("Name released successfully.", status_code=200)
+    if not is_authorized(user_roles, user_id, entity.get("ClaimedBy"), entity.get("ReleasedBy")):
+        return func.HttpResponse("Forbidden: not authorized to release this name.", status_code=403)
 
-    except Exception as e:
-        logging.exception("[release_name] Failed to release name.")
+    entity["InUse"] = False
+    entity["ReleasedBy"] = user_id
+    entity["ReleasedAt"] = datetime.utcnow().isoformat()
+    entity["ReleaseReason"] = reason
+
+    try:
+        names_table.update_entity(entity=entity, mode="Replace")
+    except Exception:
+        logging.exception("[release_name] Failed to update storage during release.")
         return func.HttpResponse("Error releasing name.", status_code=500)
+
+    metadata = {
+        "Region": region,
+        "Environment": environment,
+        "ResourceType": entity.get("ResourceType"),
+        "Slug": entity.get("Slug"),
+        "Project": entity.get("Project"),
+        "Purpose": entity.get("Purpose"),
+        "System": entity.get("System"),
+        "Index": entity.get("Index"),
+    }
+    metadata = {k: v for k, v in metadata.items() if v}
+
+    write_audit_log(name, user_id, "released", reason, metadata=metadata)
+
+    return func.HttpResponse(json.dumps({"message": "Name released successfully."}), status_code=200)
