@@ -20,8 +20,8 @@ from threading import Lock
 from typing import Dict, MutableMapping, Optional, Protocol, Tuple
 
 try:  # pragma: no cover - optional dependency for production deployments
-    from azure.data.tables import TableServiceClient
-    from azure.core.exceptions import ResourceNotFoundError
+    from azure.data.tables import TableServiceClient  # pragma: no cover - optional dependency
+    from azure.core.exceptions import ResourceNotFoundError  # pragma: no cover - optional dependency
 except ImportError:  # pragma: no cover - dependency is optional for tests
     TableServiceClient = None  # type: ignore
 
@@ -97,17 +97,17 @@ class TableStorageSettingsRepository:
     _PERMANENT_TABLE = "UserSettings"
     _SESSION_TABLE = "UserSessionSettings"
 
-    def __init__(self, connection_string: Optional[str] = None) -> None:
+    def __init__(self, connection_string: Optional[str] = None) -> None:  # pragma: no cover - requires Azure SDK
         if TableServiceClient is None:  # pragma: no cover - exercised in production
             raise RuntimeError("azure-data-tables is required for TableStorageSettingsRepository")
 
-        connection_string = connection_string or os.environ.get("AzureWebJobsStorage")
-        if not connection_string:
+        connection_string = connection_string or os.environ.get("AzureWebJobsStorage")  # pragma: no cover - requires Azure SDK
+        if not connection_string:  # pragma: no cover - requires Azure SDK
             raise RuntimeError("AzureWebJobsStorage must be configured for table storage settings")
 
-        self._service = TableServiceClient.from_connection_string(connection_string)
-        self._service.create_table_if_not_exists(self._PERMANENT_TABLE)
-        self._service.create_table_if_not_exists(self._SESSION_TABLE)
+        self._service = TableServiceClient.from_connection_string(connection_string)  # pragma: no cover - requires Azure SDK
+        self._service.create_table_if_not_exists(self._PERMANENT_TABLE)  # pragma: no cover - requires Azure SDK
+        self._service.create_table_if_not_exists(self._SESSION_TABLE)  # pragma: no cover - requires Azure SDK
 
     def get_permanent(self, user_id: str) -> Dict[str, str]:  # pragma: no cover - requires Azure SDK
         table = self._service.get_table_client(self._PERMANENT_TABLE)
@@ -229,7 +229,7 @@ def _default_repository() -> SettingsRepository:
         return InMemorySettingsRepository()
 
     try:  # pragma: no cover - exercised only when Azure SDK is present
-        return TableStorageSettingsRepository()
+        return TableStorageSettingsRepository()  # pragma: no cover - exercised only when Azure SDK is present
     except Exception as exc:  # pragma: no cover - fallback path
         logging.warning(
             "[user_settings] Falling back to in-memory repository due to configuration error: %s",
