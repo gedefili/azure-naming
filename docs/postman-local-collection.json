@@ -1,0 +1,87 @@
+{
+  "info": {
+    "name": "Azure Naming Local",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Sample requests for exercising the Azure Naming Functions locally with the auth bypass enabled."
+  },
+  "item": [
+    {
+      "name": "Claim Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"environment\": \"dev\",\n  \"region\": \"wus2\",\n  \"project\": \"finance\",\n  \"purpose\": \"costreports\",\n  \"system\": \"erp\",\n  \"index\": \"01\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/claim",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "claim"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Release Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"sanmar-st-finance-costreports-dev-wus2-01\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/release",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "release"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Audit Name",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/audit?name=sanmar-st-finance-costreports-dev-wus2-01",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "audit"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "sanmar-st-finance-costreports-dev-wus2-01"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

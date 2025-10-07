@@ -69,3 +69,4 @@ Each endpoint requires an `Authorization: Bearer <token>` header issued by Entra
 * [🔐 Authentication & RBAC](docs/auth.md)
 * [🗃 Schemas & Naming Rules](docs/schema.md)
 * [🚀 Deployment Guide](docs/deployment.md)
+* [🧪 Local Development & Postman Testing](docs/local-testing.md)
