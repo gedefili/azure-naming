@@ -5,6 +5,7 @@
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Shared orchestrator for generating and claiming Azure-compliant names.
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
@@ -15,6 +16,9 @@ from utils.slug import get_slug
 from utils.storage import check_name_exists, claim_name
 from utils.user_settings import settings_service
 from utils.validation import validate_name
+
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidRequestError(ValueError):
@@ -94,11 +98,17 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     session_id = payload.get("session_id") or payload.get("sessionId")
     scrubbed_payload = {k: v for k, v in payload.items() if k not in {"session_id", "sessionId"}}
 
-    payload_with_defaults = settings_service.apply_defaults(
-        scrubbed_payload,
-        requested_by,
-        session_id=session_id,
-    )
+    try:
+        payload_with_defaults = settings_service.apply_defaults(
+            scrubbed_payload,
+            requested_by,
+            session_id=session_id,
+        )
+    except Exception:  # pragma: no cover - defensive guard against external failures
+        logger.exception(
+            "Failed to load user settings defaults; proceeding with request payload only."
+        )
+        payload_with_defaults = dict(scrubbed_payload)
 
     normalized_payload, optional_segments = _normalise_payload(payload_with_defaults)
 
