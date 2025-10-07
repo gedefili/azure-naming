@@ -13,6 +13,7 @@ from utils.name_generator import build_name
 from utils.naming_rules import load_naming_rule
 from utils.slug import get_slug
 from utils.storage import check_name_exists, claim_name
+from utils.user_settings import settings_service
 from utils.validation import validate_name
 
 
@@ -90,7 +91,16 @@ def _normalise_payload(payload: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[st
 def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameGenerationResult:
     """Generate a compliant name from the payload and persist the claim."""
 
-    normalized_payload, optional_segments = _normalise_payload(payload)
+    session_id = payload.get("session_id") or payload.get("sessionId")
+    scrubbed_payload = {k: v for k, v in payload.items() if k not in {"session_id", "sessionId"}}
+
+    payload_with_defaults = settings_service.apply_defaults(
+        scrubbed_payload,
+        requested_by,
+        session_id=session_id,
+    )
+
+    normalized_payload, optional_segments = _normalise_payload(payload_with_defaults)
 
     resource_type = normalized_payload["resource_type"].lower()
     region = normalized_payload["region"].lower()

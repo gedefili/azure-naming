@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from utils import name_service
+from utils.user_settings import InMemorySettingsRepository, UserSettingsService
 
 
 def test_generate_and_claim_name_success(monkeypatch):
@@ -98,3 +99,29 @@ def test_generate_and_claim_name_missing_fields(monkeypatch, payload, missing):
     with pytest.raises(name_service.InvalidRequestError) as exc:
         name_service.generate_and_claim_name(payload, requested_by="user@example.com")
     assert missing in str(exc.value)
+
+
+def test_generate_and_claim_name_uses_user_defaults(monkeypatch):
+    service = UserSettingsService(repository=InMemorySettingsRepository())
+    service.set_permanent_defaults(
+        "user@example.com",
+        {"environment": "dev", "region": "wus2", "resource_type": "storage_account"},
+    )
+
+    monkeypatch.setattr(name_service, "settings_service", service)
+
+    payload = {"project": "Finance"}
+
+    monkeypatch.setattr(name_service, "load_naming_rule", lambda _: {"segments": []})
+    monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
+    monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
+    monkeypatch.setattr(name_service, "claim_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "write_audit_log", lambda *args, **kwargs: None)
+
+    result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
+
+    assert result.environment == "dev"
+    assert result.region == "wus2"
+    assert result.resource_type == "storage_account"
