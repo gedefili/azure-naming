@@ -40,6 +40,19 @@ ROLE_HIERARCHY = ["user", "manager", "admin"]
 ROLE_GROUPS = _load_role_groups()
 
 
+def _to_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"} if value else False
+
+
+LOCAL_AUTH_BYPASS = _to_bool(os.environ.get("ALLOW_LOCAL_AUTH_BYPASS", ""))
+LOCAL_BYPASS_USER_ID = os.environ.get("LOCAL_BYPASS_USER_ID", "local-dev-user")
+LOCAL_BYPASS_ROLES = [
+    role.strip()
+    for role in os.environ.get("LOCAL_BYPASS_ROLES", "user").split(",")
+    if role.strip()
+]
+
+
 class AuthError(Exception):
     """Raised when authentication or authorization fails."""
 
@@ -88,6 +101,20 @@ def verify_jwt(headers: Dict[str, str]) -> dict:
 
 def require_role(headers: Dict[str, str], min_role: str = "user") -> (str, List[str]):
     """Verify JWT and ensure the caller has at least the given role."""
+
+    if LOCAL_AUTH_BYPASS:
+        logging.debug(
+            "[auth] Local auth bypass enabled. Returning configured user %s.",
+            LOCAL_BYPASS_USER_ID,
+        )
+        roles = LOCAL_BYPASS_ROLES
+        if min_role not in ROLE_HIERARCHY:
+            raise AuthError("Invalid role configuration", status=500)
+
+        allowed_roles = ROLE_HIERARCHY[ROLE_HIERARCHY.index(min_role) :]
+        if not set(roles).intersection(allowed_roles):
+            raise AuthError("Forbidden", status=403)
+        return LOCAL_BYPASS_USER_ID, roles
 
     claims = verify_jwt(headers)
     roles = claims.get("roles", [])
