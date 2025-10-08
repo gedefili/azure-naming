@@ -22,12 +22,7 @@ graph TD
 
 | Folder             | Purpose                                         |
 | ------------------ | ----------------------------------------------- |
-| `claim_name/`      | Claim name endpoint                             |
-| `release_name/`    | Release a name                                  |
-| `audit_name/`      | Audit single name history                       |
-| `audit_bulk/`      | Audit by user, project, or time range           |
-| `slug_sync/`       | Pull slugs from GitHub, sync to Table Storage   |
-| `slug_sync_timer/` | Timer function for weekly slug updates          |
+| `function_app.py`  | Azure Functions v2 entry points (HTTP + Timer)  |
 | `utils/`           | Shared modules (auth, slug fetcher, validation) |
 | `docs/`            | Project documentation                           |
 
