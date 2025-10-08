@@ -3,7 +3,7 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "ALLOW_LOCAL_AUTH_BYPASS": "false",
+    "ALLOW_LOCAL_AUTH_BYPASS": "true",
     "LOCAL_BYPASS_USER_ID": "local-dev-user",
     "LOCAL_BYPASS_ROLES": "user,manager"
   }
