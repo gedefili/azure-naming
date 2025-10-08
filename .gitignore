@@ -1,3 +1,24 @@
 coverage-summary.json
 __pycache__/
 *.pyc
+
+# Local Azurite emulator artifacts
+.azurite/
+.azurite/**
+
+# Python virtual environments
+.venv/
+env/
+venv/
+
+# IDE and editor settings
+.vscode/
+.idea/
+.DS_Store
+
+# Pytest cache
+.pytest_cache/
+
+# Local coverage artifacts
+.coverage
+htmlcov/

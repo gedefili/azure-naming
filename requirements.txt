@@ -1,4 +1,6 @@
-azure-functions
-requests
-pyjwt
-msal
+azure-functions==1.18.0
+azure-data-tables==12.7.0
+azure-core==1.30.2
+PyJWT[crypto]==2.9.0
+requests==2.32.3
+pytest==8.3.3

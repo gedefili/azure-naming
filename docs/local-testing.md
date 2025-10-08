@@ -9,9 +9,26 @@ These instructions walk you through running the Azure Naming Function locally an
 | Requirement | Notes |
 | ----------- | ----- |
 | Python 3.10+ | Matches the Functions worker runtime. |
-| [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) | Provides the `func` CLI for local runs. |
+| Node.js 18+ / npm | Required to install the Azure Functions Core Tools via npm on Linux/WSL. |
+| [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) | Provides the `func` CLI for local runs. Install with `npm install -g azure-functions-core-tools@4 --unsafe-perm true` on Linux/WSL. |
 | [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) | Emulates Azure Table Storage locally. Install via npm (`npm install -g azurite`) or Docker. |
 | Optional: [Postman](https://www.postman.com/downloads/) | Used for manual API testing. |
+
+### Install Azure Functions Core Tools (WSL/Linux)
+
+The Azure Functions Core Tools provide the `func` CLI that starts your local Functions host. The fastest option on WSL/Ubuntu is to install via npm (requires Node.js, already used for Azurite):
+
+```bash
+npm install -g azure-functions-core-tools@4 --unsafe-perm true
+```
+
+After installation, confirm the CLI is available:
+
+```bash
+func --version
+```
+
+If the command is still not found, open a new terminal so your updated `PATH` is picked up or ensure your npm global bin directory is exported (usually `~/.npm-global/bin` on WSL).
 
 > 💡 If you prefer Docker, you can run `docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite` to launch Azurite quickly.
 
@@ -28,13 +45,23 @@ These instructions walk you through running the Azure Naming Function locally an
    pip install -r requirements.txt
    ```
 
-3. Start Azurite in a separate terminal:
+  This pulls in the Azure Functions runtime libraries, the Azure Table SDK, JWT tooling, and the local test dependencies defined in `requirements.txt`.
+
+3. Verify the Azure Functions Core Tools are available (install if needed):
+
+  ```bash
+  func --version
+  ```
+
+  If the command isn’t found, run the npm install command from the prerequisites table, then re-open your shell so `func` is on the PATH.
+
+4. Start Azurite in a separate terminal:
 
    ```bash
    azurite --silent --location .azurite --debug .azurite/debug.log
    ```
 
-4. Enable the local auth bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
+5. Enable the local auth bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
 
    ```json
    {
