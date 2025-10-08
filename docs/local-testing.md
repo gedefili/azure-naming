@@ -55,13 +55,15 @@ If the command is still not found, open a new terminal so your updated `PATH` is
 
   If the command isn’t found, run the npm install command from the prerequisites table, then re-open your shell so `func` is on the PATH.
 
-4. Start Azurite in a separate terminal:
+4. The Functions project now uses the Python v2 programming model with a single entry point in `function_app.py`. No per-function folders are required—the decorated functions in that file define every trigger.
+
+5. Start Azurite in a separate terminal:
 
    ```bash
    azurite --silent --location .azurite --debug .azurite/debug.log
    ```
 
-5. Enable the local auth bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
+6. Enable the local auth bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
 
    ```json
    {
@@ -93,7 +95,7 @@ With Azurite running and the virtual environment activated, start the Functions 
 func start
 ```
 
-You should see the HTTP triggers listening on `http://localhost:7071/api/...`.
+You should see the HTTP triggers listening on `http://localhost:7071/api/...`. Each route is defined in `function_app.py`; the `generate` endpoint is an alias of `claim` for backward compatibility.
 
 ---
 
