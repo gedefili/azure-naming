@@ -80,3 +80,4 @@ Tokens are validated server-side; no function keys are required.
 * [🗃 Schemas & Naming Rules](docs/schema.md)
 * [🚀 Deployment Guide](docs/deployment.md)
 * [🧪 Local Development, Swagger & Postman](docs/local-testing.md)
+* [💰 10-Year Cost Estimate](docs/cost-estimate.md)

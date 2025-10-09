@@ -107,6 +107,26 @@ func start
 
 You should see the HTTP triggers listening on `http://localhost:7071/api/...`. Each route is defined in `function_app.py`; the `generate` endpoint is an alias of `claim` for backward compatibility.
 
+### VS Code one-click startup + debugging
+
+If you use VS Code, the repository includes a helper script (`tools/start_local_stack.py`) plus debug configuration that automates the local stack:
+
+1. Select **Attach to Local Azure Functions** from the Run & Debug panel and press **F5**.  
+2. The pre-launch task will:
+  - ensure `.venv` is active for the session,
+  - start Azurite (CLI or Docker fallback),
+  - launch `func start` with `debugpy` listening on port `5678`, and
+  - open the Swagger UI (`http://localhost:7071/api/docs`).
+3. VS Code attaches to the waiting debug session once the Functions worker is ready.
+
+You can also invoke the helper manually:
+
+```bash
+python tools/start_local_stack.py  # add --no-browser to skip opening Swagger
+```
+
+Stop debugging (or press `Ctrl+C` in the terminal) to tear everything down.
+
 ---
 
 ## 4. Request an Azure access token
