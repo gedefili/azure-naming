@@ -39,11 +39,11 @@ If the command is still not found, open a new terminal so your updated `PATH` is
 1. Clone the repository and switch into the project folder.
 2. Create a Python virtual environment and install dependencies:
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+  ```bash
+  python3 -m venv .venv  # Windows (PowerShell): py -m venv .venv
+  source .venv/bin/activate  # Windows: .venv\Scripts\activate
+  python3 -m pip install -r requirements.txt
+  ```
 
   This pulls in the Azure Functions runtime libraries, the Azure Table SDK, JWT tooling, and the local test dependencies defined in `requirements.txt`.
 
