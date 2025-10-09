@@ -178,6 +178,22 @@ export ACCESS_TOKEN="$(az account get-access-token --resource api://<AZURE_CLIEN
 
 Include this token in the `Authorization` header as `Bearer $ACCESS_TOKEN` when calling the API.
 
+### Token helper script
+
+To streamline local testing, a helper utility is available:
+
+```bash
+python tools/get_access_token.py --show-claims
+```
+
+By default it looks for `AZURE_CLIENT_ID` and requests `api://<client-id>` access. The raw token is printed for copy/paste, along with key claims when `--show-claims` is supplied. Additional options:
+
+* `--client-id <id>` — override the application ID.
+* `--resource <resource>` — request a specific resource instead of the default.
+* `--scope <scope>` — request an OAuth scope (e.g., `api://<client-id>/.default`).
+
+The script wraps `az account get-access-token`, so make sure you are logged in with `az login` first.
+
 ## 5. Explore the API with Swagger UI
 
 When the Functions host is running you can browse fully generated OpenAPI documentation at:
