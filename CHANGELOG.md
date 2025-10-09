@@ -8,6 +8,19 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
 
 ## \[1.0.0] - 2025-07-24
 
+## [1.1.0] - 2025-10-08
+
+### Added
+
+* Pluggable naming rule providers with display metadata for responses
+* Built-in US strict rule provider enforcing region, environment, and segment requirements
+* Documentation covering custom provider usage and updated module layout guidance
+
+### Changed
+
+* Refactored `function_app.py` into modular route packages for readability and maintainability
+* API responses now include a `display` block derived from naming rules for consistent presentation
+
 ### Added
 
 * Initial Azure Function-based naming service
