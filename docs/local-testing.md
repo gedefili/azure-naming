@@ -63,14 +63,16 @@ If the command is still not found, open a new terminal so your updated `PATH` is
    azurite --silent --location .azurite --debug .azurite/debug.log
    ```
 
-6. Enable the local auth bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
+6. Configure authentication options:
+
+   - For local-only testing, you can enable the bypass so you can call the APIs without a real Entra ID token. Update **`local.settings.json`** (or set environment variables) with:
 
    ```json
    {
      "Values": {
        "ALLOW_LOCAL_AUTH_BYPASS": "true",
        "LOCAL_BYPASS_USER_ID": "local-dev-user",
-       "LOCAL_BYPASS_ROLES": "user,manager"
+       "LOCAL_BYPASS_ROLES": "contributor,admin"
      }
    }
    ```
@@ -80,8 +82,16 @@ If the command is still not found, open a new terminal so your updated `PATH` is
    ```bash
    export ALLOW_LOCAL_AUTH_BYPASS=true
    export LOCAL_BYPASS_USER_ID=local-dev-user
-   export LOCAL_BYPASS_ROLES=user,manager
+  export LOCAL_BYPASS_ROLES=contributor,admin
    ```
+
+   - To integrate with Entra ID groups, set the optional environment variables that map each role to a group ID:
+
+     | Variable | Description |
+     | --- | --- |
+     | `AZURE_ROLE_GROUP_READER` | GUID for the **Sanmar Naming Reader** group/app role. |
+     | `AZURE_ROLE_GROUP_CONTRIBUTOR` | GUID for the **Sanmar Naming Contributor** group/app role. |
+     | `AZURE_ROLE_GROUP_ADMIN` | GUID for the **Sanmar Naming Admin** group/app role. |
 
    > ⚠️ Keep the bypass disabled in shared or hosted environments. It is intended only for isolated local testing.
 
@@ -99,7 +109,42 @@ You should see the HTTP triggers listening on `http://localhost:7071/api/...`. E
 
 ---
 
-## 4. Test with Postman (or curl)
+## 4. Request an Azure access token
+
+When the bypass is disabled you must present a bearer token that includes one of the custom roles:
+
+* **Sanmar Naming Reader** — read-only access (view docs, audit your own records).
+* **Sanmar Naming Contributor** — create/release names and query audits.
+* **Sanmar Naming Admin** — elevated operations such as bulk audits and slug synchronization.
+
+Assign yourself to the appropriate app role in Entra ID, then request a token. If you're using the Azure CLI, the following command requests a token for the registered application (replace the placeholders with your actual values):
+
+```bash
+az account get-access-token \
+  --resource api://<AZURE_CLIENT_ID> \
+  --query accessToken -o tsv
+```
+
+You can then export it for curl/Postman:
+
+```bash
+export ACCESS_TOKEN="$(az account get-access-token --resource api://<AZURE_CLIENT_ID> --query accessToken -o tsv)"
+```
+
+Include this token in the `Authorization` header as `Bearer $ACCESS_TOKEN` when calling the API.
+
+## 5. Explore the API with Swagger UI
+
+When the Functions host is running you can browse fully generated OpenAPI documentation at:
+
+* Swagger UI: <http://localhost:7071/api/docs>
+* Raw spec: <http://localhost:7071/api/openapi.json>
+
+The Swagger page lists every HTTP trigger with schemas, sample payloads, and status codes. Select an operation and choose **Try it out** to execute a request directly from the browser. Because the route is anonymous locally, you do not need a function key or bearer token while the bypass variables are enabled.
+
+> ℹ️ In hosted environments you can restrict access to the documentation by removing or changing the anonymous auth level for the `/docs` and `/openapi.json` routes.
+
+## 6. Test with Postman (or curl)
 
 1. **Create a new Postman environment** with a `base_url` variable set to `http://localhost:7071`.
 2. Import the [Postman collection](./postman-local-collection.json) included in this repository or create your own requests using the examples below.
@@ -145,7 +190,7 @@ All endpoints return JSON responses and standard HTTP status codes identical to 
 
 ---
 
-## 5. Running Automated Tests
+## 7. Running Automated Tests
 
 While the Functions host is running, you can still execute the Python unit tests in another terminal:
 
@@ -155,7 +200,7 @@ pytest
 
 ---
 
-## 6. Cleaning Up
+## 8. Cleaning Up
 
 * Stop the Functions host with `Ctrl+C`.
 * Stop Azurite (or the Docker container) when you are done.

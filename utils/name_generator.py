@@ -5,6 +5,25 @@
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Utility to assemble a compliant Azure resource name based on rules and slug.
 
+from typing import Iterable, Mapping
+
+
+def _get_segments(rule) -> Iterable[str]:
+    if hasattr(rule, "segments"):
+        return getattr(rule, "segments")
+    if isinstance(rule, Mapping):
+        return rule.get("segments", [])
+    return []
+
+
+def _require_prefix(rule) -> bool:
+    if hasattr(rule, "require_sanmar_prefix"):
+        return bool(getattr(rule, "require_sanmar_prefix"))
+    if isinstance(rule, Mapping):
+        return bool(rule.get("require_sanmar_prefix", False))
+    return False
+
+
 def build_name(region, environment, slug, rule, optional_inputs):
     """
     Build a resource name following the provided naming rule and inputs.
@@ -22,7 +41,7 @@ def build_name(region, environment, slug, rule, optional_inputs):
     parts = []
 
     # Define known fields and fallback to blank if not supplied
-    for segment in rule.get("segments", []):
+    for segment in _get_segments(rule):
         if segment == "region":
             parts.append(region)
         elif segment == "environment":
@@ -35,7 +54,7 @@ def build_name(region, environment, slug, rule, optional_inputs):
 
     name = "-".join(filter(None, parts)).lower()
 
-    if rule.get("require_sanmar_prefix", False):
+    if _require_prefix(rule):
         if not name.startswith("sanmar"):
             name = f"sanmar-{name}"
 

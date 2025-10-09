@@ -41,12 +41,27 @@ graph TD
 ## 📄 Endpoints
 
 * `POST /api/claim` — generate and reserve a name
+* `POST /api/generate` — legacy alias for claim
 * `POST /api/release` — release an existing name
 * `GET  /api/audit?name=` — audit a single name
 * `GET  /api/audit_bulk?...` — audit a user/project/time
 * `POST /api/slug_sync` — manually refresh slugs
+* `GET  /api/docs` — interactive Swagger UI for every endpoint
+* `GET  /api/openapi.json` — machine-readable OpenAPI 3.0 document
 
 Each endpoint requires an `Authorization: Bearer <token>` header issued by Entra ID.
+
+### 🔑 App Roles
+
+Assign one of the custom app roles to callers in Entra ID:
+
+| Role | Permissions |
+| ---- | ----------- |
+| **Sanmar Naming Reader** | View OpenAPI docs and query audits for your own activity. |
+| **Sanmar Naming Contributor** | Generate/release names and query audits. |
+| **Sanmar Naming Admin** | Everything above plus slug sync and cross-user audits. |
+
+Tokens are validated server-side; no function keys are required.
 
 ---
 
@@ -64,4 +79,4 @@ Each endpoint requires an `Authorization: Bearer <token>` header issued by Entra
 * [🔐 Authentication & RBAC](docs/auth.md)
 * [🗃 Schemas & Naming Rules](docs/schema.md)
 * [🚀 Deployment Guide](docs/deployment.md)
-* [🧪 Local Development & Postman Testing](docs/local-testing.md)
+* [🧪 Local Development, Swagger & Postman](docs/local-testing.md)

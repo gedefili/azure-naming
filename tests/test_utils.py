@@ -1,14 +1,10 @@
-import os, sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-import pytest
-
-from utils import naming_rules, name_generator, validation
-
+import os
 import pathlib
 import sys
 
 import pytest
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,8 +20,9 @@ def test_load_naming_rule_default():
 
 def test_load_naming_rule_specific():
     rule = naming_rules.load_naming_rule("storage_account")
-    assert rule["max_length"] == 24
-    assert rule["require_sanmar_prefix"] is True
+    assert rule.max_length == 24
+    assert rule.require_sanmar_prefix is True
+    assert any(field.key == "name" for field in rule.display_fields)
 
 
 def test_build_name_composes_segments():
@@ -78,3 +75,60 @@ def test_validate_name_characters():
     rule = {"max_length": 20}
     with pytest.raises(ValueError):
         validation.validate_name("no_good$", rule)
+
+
+def test_render_display_skips_optional_missing_values():
+    rule = naming_rules.DEFAULT_RULE
+    payload = {
+        "name": "sanmar-st-dev-wus2",
+        "resourceType": "storage_account",
+        "region": "wus2",
+        "environment": "dev",
+        "slug": "st",
+    }
+
+    display = rule.render_display(payload)
+    keys = [item["key"] for item in display]
+
+    assert "name" in keys
+    assert "project" not in keys
+
+
+def test_render_display_includes_required_fields():
+    rule = naming_rules.load_naming_rule("storage_account")
+    payload = {
+        "name": "sanmar-st-dev-wus2",
+        "resourceType": "storage_account",
+        "region": "wus2",
+        "environment": "dev",
+        "slug": "st",
+        "project": "finance",
+    }
+
+    display = rule.render_display(payload)
+    entry = next(item for item in display if item["key"] == "name")
+    assert entry["label"] == "Storage Account Name"
+    assert entry["value"] == "sanmar-st-dev-wus2"
+
+
+class StaticRuleProvider:
+    def __init__(self, rule):
+        self.rule = rule
+
+    def get_rule(self, resource_type: str):
+        return self.rule
+
+
+def test_custom_rule_provider():
+    original_provider = naming_rules.get_rule_provider()
+    custom_rule = naming_rules.NamingRule(
+        segments=("slug", "environment"),
+        max_length=10,
+        require_sanmar_prefix=False,
+    )
+    provider = StaticRuleProvider(custom_rule)
+    try:
+        naming_rules.set_rule_provider(provider)
+        assert naming_rules.load_naming_rule("any") is custom_rule
+    finally:
+        naming_rules.set_rule_provider(original_provider)

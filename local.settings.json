@@ -5,6 +5,9 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "ALLOW_LOCAL_AUTH_BYPASS": "true",
     "LOCAL_BYPASS_USER_ID": "local-dev-user",
-    "LOCAL_BYPASS_ROLES": "user,manager"
-  }
+    "LOCAL_BYPASS_ROLES": "contributor,admin",
+    "SANMAR_SLUGS_CONNECTION": "UseDevelopmentStorage=true"
+  },
+  "ConnectionStrings": {},
+  "Host": {}
 }

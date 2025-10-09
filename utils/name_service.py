@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from utils.audit_logs import write_audit_log
 from utils.name_generator import build_name
-from utils.naming_rules import load_naming_rule
+from utils.naming_rules import NamingRule, load_naming_rule
 from utils.slug import get_slug
 from utils.storage import check_name_exists, claim_name
 from utils.user_settings import settings_service
@@ -40,6 +40,7 @@ class NameGenerationResult:
     purpose: Optional[str] = None
     system: Optional[str] = None
     index: Optional[str] = None
+    rule: Optional[NamingRule] = None
 
     def to_dict(self) -> Dict[str, Any]:
         payload = {
@@ -57,6 +58,8 @@ class NameGenerationResult:
             payload["system"] = self.system
         if self.index:
             payload["index"] = self.index
+        if self.rule and hasattr(self.rule, "render_display"):
+            payload["display"] = self.rule.render_display(payload)
         return payload
 
 
@@ -117,6 +120,12 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     environment = normalized_payload["environment"].lower()
 
     rule = load_naming_rule(resource_type)
+    if hasattr(rule, "validate_payload"):
+        try:
+            rule.validate_payload({**normalized_payload})
+        except ValueError as exc:
+            raise InvalidRequestError(str(exc))
+
     slug = get_slug(resource_type)
 
     name = build_name(
@@ -183,4 +192,5 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         purpose=entity_metadata.get("Purpose"),
         system=entity_metadata.get("System"),
         index=entity_metadata.get("Index"),
+        rule=rule,
     )

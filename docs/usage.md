@@ -55,7 +55,18 @@ You can also call **POST** `/api/generate` if you prefer to keep the claim-speci
   "purpose": "costreports",
   "system": "erp",
   "index": "01",
-  "claimedBy": "<user object id>"
+  "claimedBy": "<user object id>",
+  "display": [
+    {"key": "name", "label": "Storage Account Name", "value": "sanmar-st-finance-costreports-dev-wus2-01"},
+    {"key": "resourceType", "label": "Resource Type", "value": "storage_account"},
+    {"key": "slug", "label": "Slug", "value": "st"},
+    {"key": "environment", "label": "Environment", "value": "dev"},
+    {"key": "region", "label": "Region", "value": "wus2"},
+    {"key": "project", "label": "Project", "value": "finance"},
+    {"key": "purpose", "label": "Purpose", "value": "costreports"},
+    {"key": "system", "label": "System", "value": "erp"},
+    {"key": "index", "label": "Index", "value": "01"}
+  ]
 }
 ```
 

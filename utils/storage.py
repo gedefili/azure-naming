@@ -10,13 +10,19 @@ from threading import Lock
 from typing import Any, Dict, Optional
 
 try:
-    from azure.data.tables import TableServiceClient
-    from azure.core.exceptions import ResourceNotFoundError
+    from azure.data.tables import TableServiceClient, UpdateMode
+    from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 except ImportError:  # pragma: no cover - fallback for local testing without Azure SDK
     TableServiceClient = None  # type: ignore
 
     class ResourceNotFoundError(Exception):
-        """Placeholder exception used when Azure SDK is not installed."""
+        """Placeholder exception used when the Azure SDK is unavailable."""
+
+    class ResourceExistsError(Exception):
+        """Placeholder exception used when the Azure SDK is unavailable."""
+
+    class UpdateMode:  # type: ignore
+        MERGE = "MERGE"
 
 _SERVICE_LOCK = Lock()
 _service: Optional[TableServiceClient] = None
@@ -47,9 +53,15 @@ def _get_service() -> TableServiceClient:
 
 
 def get_table_client(table_name: str):
-    """Return a TableClient for the given table name."""
+    """Return a TableClient for the given table name, creating it if missing."""
 
-    return _get_service().get_table_client(table_name)
+    service = _get_service()
+    try:
+        service.create_table_if_not_exists(table_name=table_name)
+    except ResourceExistsError:
+        pass
+
+    return service.get_table_client(table_name)
 
 
 def check_name_exists(region: str, environment: str, name: str) -> bool:
@@ -87,4 +99,4 @@ def claim_name(
     if metadata:
         entity.update(metadata)
 
-    table.upsert_entity(entity=entity, mode="Merge")
+    table.upsert_entity(entity=entity, mode=UpdateMode.MERGE)

@@ -9,7 +9,7 @@ import base64
 import json
 import logging
 import os
-from typing import Dict, List
+from typing import Dict, Iterable, List, Optional
 
 import jwt
 from jwt import PyJWKClient, InvalidTokenError
@@ -36,8 +36,47 @@ JWKS_URL = (
     else ""
 )
 
-ROLE_HIERARCHY = ["user", "manager", "admin"]
+ROLE_HIERARCHY = ["reader", "contributor", "admin"]
+ROLE_ALIASES = {
+    "reader": "reader",
+    "contributor": "contributor",
+    "admin": "admin",
+    "sanmar-naming-reader": "reader",
+    "sanmar-naming-contributor": "contributor",
+    "sanmar-naming-admin": "admin",
+    "sanmar.naming.reader": "reader",
+    "sanmar.naming.contributor": "contributor",
+    "sanmar.naming.admin": "admin",
+}
 ROLE_GROUPS = _load_role_groups()
+
+
+def _normalise_role_token(role: str) -> str:
+    return (
+        role.strip().lower().replace(" ", "-").replace("_", "-").replace(".", "-")
+        if role
+        else ""
+    )
+
+
+def _canonicalize_role(role: str) -> Optional[str]:
+    token = _normalise_role_token(role)
+    if not token:
+        return None
+    canonical = ROLE_ALIASES.get(token, token)
+    return canonical if canonical in ROLE_HIERARCHY else None
+
+
+def _canonicalize_roles(raw_roles: Iterable[str]) -> List[str]:
+    canonical_roles: List[str] = []
+    for role in raw_roles:
+        canonical = _canonicalize_role(role)
+        if canonical:
+            if canonical not in canonical_roles:
+                canonical_roles.append(canonical)
+        else:
+            logging.debug("[auth] Ignoring unknown role claim: %s", role)
+    return canonical_roles
 
 
 def _to_bool(value: str) -> bool:
@@ -46,11 +85,12 @@ def _to_bool(value: str) -> bool:
 
 LOCAL_AUTH_BYPASS = _to_bool(os.environ.get("ALLOW_LOCAL_AUTH_BYPASS", ""))
 LOCAL_BYPASS_USER_ID = os.environ.get("LOCAL_BYPASS_USER_ID", "local-dev-user")
-LOCAL_BYPASS_ROLES = [
+_LOCAL_BYPASS_RAW = [
     role.strip()
-    for role in os.environ.get("LOCAL_BYPASS_ROLES", "user").split(",")
+    for role in os.environ.get("LOCAL_BYPASS_ROLES", "contributor,admin").split(",")
     if role.strip()
 ]
+LOCAL_BYPASS_ROLES = _canonicalize_roles(_LOCAL_BYPASS_RAW) or ["contributor"]
 
 
 class AuthError(Exception):
@@ -99,8 +139,12 @@ def verify_jwt(headers: Dict[str, str]) -> dict:
         raise AuthError("Invalid token", status=401) from exc
 
 
-def require_role(headers: Dict[str, str], min_role: str = "user") -> (str, List[str]):
+def require_role(headers: Dict[str, str], min_role: str = "reader") -> (str, List[str]):
     """Verify JWT and ensure the caller has at least the given role."""
+
+    canonical_min_role = _canonicalize_role(min_role)
+    if not canonical_min_role:
+        raise AuthError("Invalid role configuration", status=500)
 
     if LOCAL_AUTH_BYPASS:
         logging.debug(
@@ -108,10 +152,8 @@ def require_role(headers: Dict[str, str], min_role: str = "user") -> (str, List[
             LOCAL_BYPASS_USER_ID,
         )
         roles = LOCAL_BYPASS_ROLES
-        if min_role not in ROLE_HIERARCHY:
-            raise AuthError("Invalid role configuration", status=500)
 
-        allowed_roles = ROLE_HIERARCHY[ROLE_HIERARCHY.index(min_role) :]
+        allowed_roles = ROLE_HIERARCHY[ROLE_HIERARCHY.index(canonical_min_role) :]
         if not set(roles).intersection(allowed_roles):
             raise AuthError("Forbidden", status=403)
         return LOCAL_BYPASS_USER_ID, roles
@@ -120,11 +162,9 @@ def require_role(headers: Dict[str, str], min_role: str = "user") -> (str, List[
     roles = claims.get("roles", [])
     if isinstance(roles, str):
         roles = [roles]
+    roles = _canonicalize_roles(roles)
 
-    if min_role not in ROLE_HIERARCHY:
-        raise AuthError("Invalid role configuration", status=500)
-
-    allowed_roles = ROLE_HIERARCHY[ROLE_HIERARCHY.index(min_role) :]
+    allowed_roles = ROLE_HIERARCHY[ROLE_HIERARCHY.index(canonical_min_role) :]
     if not set(roles).intersection(allowed_roles):
         raise AuthError("Forbidden", status=403)
 
@@ -148,7 +188,7 @@ def get_user_roles(principal: dict) -> List[str]:
 
 # Require basic user access to hit endpoint
 def is_authenticated_user(user_roles: List[str]) -> bool:
-    return "user" in user_roles or "manager" in user_roles or "admin" in user_roles
+    return any(role in user_roles for role in ("reader", "contributor", "admin"))
 
 # Check if user has access to a resource
 # User must be admin/manager OR directly involved

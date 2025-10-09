@@ -8,6 +8,15 @@ from typing import Dict, List, Tuple
 
 import azure.functions as func
 from azure.core.exceptions import ResourceNotFoundError
+try:  # pragma: no cover - optional dependency during docs builds
+    from azure.data.tables import UpdateMode
+except ImportError:  # pragma: no cover
+    class UpdateMode:  # type: ignore[override]
+        MERGE = "MERGE"
+from azure_functions_openapi.decorator import openapi as openapi_doc
+from azure_functions_openapi.openapi import get_openapi_json
+from azure_functions_openapi.swagger_ui import render_swagger_ui
+from pydantic import BaseModel, ConfigDict, Field
 
 from utils.audit_logs import write_audit_log
 from utils.auth import AuthError, is_authorized, require_role
@@ -27,18 +36,115 @@ except ImportError:  # pragma: no cover - fallback when Azure SDK extras absent
         """Fallback AzureError when the Azure SDK is unavailable."""
 
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 NAMES_TABLE_NAME = "ClaimedNames"
 AUDIT_TABLE_NAME = "AuditLogs"
 SLUG_TABLE_NAME = "SlugMappings"
 SLUG_PARTITION_KEY = "slug"
-_ELEVATED_ROLES = {"manager", "admin"}
+_ELEVATED_ROLES = {"admin"}
+API_TITLE = "Azure Naming Service API"
+API_VERSION = "1.0.0"
+
+
+class NameClaimRequest(BaseModel):
+    """Schema describing the payload used to generate and claim a name."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    resource_type: str = Field(..., description="Azure resource type (e.g. storage_account).")
+    region: str = Field(..., description="Azure region short code (e.g. wus2).")
+    environment: str = Field(..., description="Deployment environment (e.g. dev, prod).")
+    project: str | None = Field(default=None, description="Optional project or domain segment.")
+    purpose: str | None = Field(default=None, description="Optional purpose or subdomain segment.")
+    system: str | None = Field(default=None, description="Optional system identifier.")
+    index: str | None = Field(default=None, description="Optional numeric tie breaker.")
+    session_id: str | None = Field(
+        default=None,
+        description="Optional session identifier to apply user defaults.",
+        alias="sessionId",
+    )
+
+
+class DisplayFieldEntry(BaseModel):
+    key: str
+    label: str
+    value: str | None = None
+    description: str | None = None
+
+
+class NameClaimResponse(BaseModel):
+    """Successful response when a name is generated and claimed."""
+
+    name: str
+    resourceType: str
+    region: str
+    environment: str
+    slug: str
+    claimedBy: str
+    project: str | None = None
+    purpose: str | None = None
+    system: str | None = None
+    index: str | None = None
+    display: List[DisplayFieldEntry] = Field(default_factory=list)
+
+
+class ReleaseRequest(BaseModel):
+    """Schema describing a release request."""
+
+    name: str = Field(..., description="Fully qualified name to release.")
+    region: str = Field(..., description="Region where the name was registered.")
+    environment: str = Field(..., description="Environment where the name was registered.")
+    reason: str | None = Field(
+        default="not specified",
+        description="Optional note describing why the name is being released.",
+    )
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class AuditRecordResponse(BaseModel):
+    name: str
+    resource_type: str
+    in_use: bool
+    claimed_by: str | None = None
+    claimed_at: str | None = None
+    released_by: str | None = None
+    released_at: str | None = None
+    release_reason: str | None = None
+    region: str
+    environment: str
+    slug: str | None = None
+    project: str | None = None
+    purpose: str | None = None
+    system: str | None = None
+    index: str | None = None
+
+
+class AuditLogEntry(BaseModel):
+    name: str
+    event_id: str
+    user: str | None = None
+    action: str | None = None
+    note: str | None = None
+    timestamp: str
+    region: str | None = None
+    environment: str | None = None
+    project: str | None = None
+    purpose: str | None = None
+    resource_type: str | None = None
+
+
+class AuditBulkResponse(BaseModel):
+    results: List[AuditLogEntry]
 
 
 def _build_claim_response(result: NameGenerationResult, user_id: str) -> func.HttpResponse:
     body = result.to_dict()
     body["claimedBy"] = user_id
+    body.setdefault("display", [])
     return func.HttpResponse(
         json.dumps(body),
         mimetype="application/json",
@@ -46,11 +152,19 @@ def _build_claim_response(result: NameGenerationResult, user_id: str) -> func.Ht
     )
 
 
+def _json_message(message: str, *, status_code: int) -> func.HttpResponse:
+    return func.HttpResponse(
+        json.dumps({"message": message}),
+        mimetype="application/json",
+        status_code=status_code,
+    )
+
+
 def _handle_claim_request(req: func.HttpRequest, *, log_prefix: str) -> func.HttpResponse:
     logging.info("[%s] Processing claim request with RBAC.", log_prefix)
 
     try:
-        user_id, _roles = require_role(req.headers, min_role="user")
+        user_id, _roles = require_role(req.headers, min_role="contributor")
     except AuthError as exc:
         return func.HttpResponse(str(exc), status_code=exc.status)
 
@@ -73,6 +187,20 @@ def _handle_claim_request(req: func.HttpRequest, *, log_prefix: str) -> func.Htt
 
 @app.function_name(name="claim_name")
 @app.route(route="claim", methods=[func.HttpMethod.POST])
+@openapi_doc(
+    summary="Generate and claim a compliant resource name",
+    description=(
+        "Generates an Azure-compliant name based on resource type, region, and environment, "
+        "then marks it as claimed for the caller. Optional metadata segments can be supplied "
+        "to influence slug composition."
+    ),
+    tags=["Names"],
+    request_model=NameClaimRequest,
+    response_model=NameClaimResponse,
+    operation_id="claimName",
+    route="/claim",
+    method="post",
+)
 def claim_name(req: func.HttpRequest) -> func.HttpResponse:
     """Generate and claim a compliant name."""
 
@@ -81,6 +209,16 @@ def claim_name(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.function_name(name="generate_name")
 @app.route(route="generate", methods=[func.HttpMethod.POST])
+@openapi_doc(
+    summary="Legacy alias for claim endpoint",
+    description="Backwards compatible alias that behaves identically to /claim.",
+    tags=["Names"],
+    request_model=NameClaimRequest,
+    response_model=NameClaimResponse,
+    operation_id="generateName",
+    route="/generate",
+    method="post",
+)
 def generate_name(req: func.HttpRequest) -> func.HttpResponse:
     """Alias route for backwards compatibility with legacy clients."""
 
@@ -89,13 +227,23 @@ def generate_name(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.function_name(name="release_name")
 @app.route(route="release", methods=[func.HttpMethod.POST])
+@openapi_doc(
+    summary="Release a previously claimed name",
+    description="Marks a claimed name as available again once authorization checks pass.",
+    tags=["Names"],
+    request_model=ReleaseRequest,
+    response_model=MessageResponse,
+    operation_id="releaseName",
+    route="/release",
+    method="post",
+)
 def release_name(req: func.HttpRequest) -> func.HttpResponse:
     """Release a previously claimed name."""
 
     logging.info("[release_name] Processing release request with RBAC.")
 
     try:
-        user_id, user_roles = require_role(req.headers, min_role="user")
+        user_id, user_roles = require_role(req.headers, min_role="contributor")
     except AuthError as exc:
         return func.HttpResponse(str(exc), status_code=exc.status)
 
@@ -149,18 +297,50 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
 
     write_audit_log(name, user_id, "released", reason, metadata=metadata)
 
-    return func.HttpResponse(json.dumps({"message": "Name released successfully."}), status_code=200)
+    return _json_message("Name released successfully.", status_code=200)
 
 
 @app.function_name(name="audit_name")
 @app.route(route="audit", methods=[func.HttpMethod.GET])
+@openapi_doc(
+    summary="Retrieve audit details for a claimed name",
+    description="Returns the audit record for a single resource name if the caller is authorized.",
+    tags=["Audit"],
+    parameters=[
+        {
+            "name": "region",
+            "in": "query",
+            "required": True,
+            "schema": {"type": "string"},
+            "description": "Region code where the name was registered.",
+        },
+        {
+            "name": "environment",
+            "in": "query",
+            "required": True,
+            "schema": {"type": "string"},
+            "description": "Environment where the name was registered (dev/test/prod).",
+        },
+        {
+            "name": "name",
+            "in": "query",
+            "required": True,
+            "schema": {"type": "string"},
+            "description": "Fully qualified name to inspect.",
+        },
+    ],
+    response_model=AuditRecordResponse,
+    operation_id="auditName",
+    route="/audit",
+    method="get",
+)
 def audit_name(req: func.HttpRequest) -> func.HttpResponse:
     """Retrieve audit information for a single claimed name."""
 
     logging.info("[audit_name] Starting RBAC-secured audit check.")
 
     try:
-        user_id, user_roles = require_role(req.headers, min_role="user")
+        user_id, user_roles = require_role(req.headers, min_role="reader")
     except AuthError as exc:
         return func.HttpResponse(str(exc), status_code=exc.status)
 
@@ -252,13 +432,47 @@ def _build_filter(params: Dict[str, str]) -> str:
 
 @app.function_name(name="audit_bulk")
 @app.route(route="audit_bulk", methods=[func.HttpMethod.GET])
+@openapi_doc(
+    summary="List audit records with optional filters",
+    description=(
+        "Returns audit history optionally filtered by user, project, purpose, region, environment, "
+        "action, or time range. Non-elevated users can only view their own records."
+    ),
+    tags=["Audit"],
+    parameters=[
+        {"name": "user", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "project", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "purpose", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "region", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "environment", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "action", "in": "query", "required": False, "schema": {"type": "string"}},
+        {
+            "name": "start",
+            "in": "query",
+            "required": False,
+            "schema": {"type": "string", "format": "date-time"},
+            "description": "Filter events occurring on or after this timestamp (ISO 8601).",
+        },
+        {
+            "name": "end",
+            "in": "query",
+            "required": False,
+            "schema": {"type": "string", "format": "date-time"},
+            "description": "Filter events occurring on or before this timestamp (ISO 8601).",
+        },
+    ],
+    response_model=AuditBulkResponse,
+    operation_id="auditBulk",
+    route="/audit_bulk",
+    method="get",
+)
 def audit_bulk(req: func.HttpRequest) -> func.HttpResponse:
     """List audit records with optional filters."""
 
     logging.info("[audit_bulk] Processing bulk audit request.")
 
     try:
-        user_id, roles = require_role(req.headers, min_role="user")
+        user_id, roles = require_role(req.headers, min_role="reader")
     except AuthError as exc:
         return func.HttpResponse(str(exc), status_code=exc.status)
 
@@ -334,7 +548,7 @@ def _perform_slug_sync() -> Tuple[int, str]:
                 "FullName": full_name,
                 "UpdatedAt": datetime.utcnow().isoformat(),
             }
-            slug_table.upsert_entity(entity=new_entity, mode="Replace")
+            slug_table.upsert_entity(entity=new_entity, mode=UpdateMode.MERGE)
             updated_count += 1
 
     message = f"Slug sync complete. {updated_count} entries updated/created."
@@ -344,28 +558,66 @@ def _perform_slug_sync() -> Tuple[int, str]:
 
 @app.function_name(name="slug_sync")
 @app.route(route="slug_sync", methods=[func.HttpMethod.POST])
+@openapi_doc(
+    summary="Synchronize slug mappings",
+    description="Triggers a refresh of slug metadata from the upstream GitHub source.",
+    tags=["Maintenance"],
+    response_model=MessageResponse,
+    operation_id="slugSync",
+    route="/slug_sync",
+    method="post",
+)
 def slug_sync(req: func.HttpRequest) -> func.HttpResponse:
     """Synchronize slug mappings via HTTP trigger."""
 
     logging.info("[slug_sync] Starting slug synchronization from GitHub source.")
 
     try:
-        require_role(req.headers, min_role="user")
+        require_role(req.headers, min_role="admin")
     except AuthError as exc:
         return func.HttpResponse(str(exc), status_code=exc.status)
 
     try:
         status_code, message = _perform_slug_sync()
-        return func.HttpResponse(message, status_code=status_code)
+        return _json_message(message, status_code=status_code)
     except SlugSourceError as exc:
         logging.warning("[slug_sync] Upstream slug source unavailable: %s", exc)
-        return func.HttpResponse("Slug sync failed: upstream source unavailable.", status_code=503)
+        return _json_message("Slug sync failed: upstream source unavailable.", status_code=503)
     except (AzureError, RuntimeError):
         logging.exception("[slug_sync] Failed to connect to storage.")
-        return func.HttpResponse("Slug sync failed: storage unavailable.", status_code=500)
+        return _json_message("Slug sync failed: storage unavailable.", status_code=500)
     except Exception:
         logging.exception("[slug_sync] Slug sync failed.")
-        return func.HttpResponse("Slug sync failed.", status_code=500)
+        return _json_message("Slug sync failed.", status_code=500)
+
+
+@app.function_name(name="openapi_spec")
+@app.route(
+    route="openapi.json",
+    methods=[func.HttpMethod.GET],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def openapi_spec(req: func.HttpRequest) -> func.HttpResponse:
+    """Serve the generated OpenAPI specification for the HTTP API."""
+
+    try:
+        require_role(req.headers, min_role="reader")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
+    spec_json = get_openapi_json(title=API_TITLE, version=API_VERSION)
+    return func.HttpResponse(spec_json, mimetype="application/json", status_code=200)
+
+
+@app.function_name(name="swagger_ui")
+@app.route(route="docs", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+def swagger_ui(req: func.HttpRequest) -> func.HttpResponse:
+    """Serve an interactive Swagger UI backed by the generated OpenAPI spec."""
+
+    try:
+        require_role(req.headers, min_role="reader")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
+    return render_swagger_ui(title=f"{API_TITLE} – Swagger", openapi_url="/api/openapi.json")
 
 
 @app.function_name(name="slug_sync_timer")
@@ -383,5 +635,3 @@ def slug_sync_timer(mytimer: func.TimerRequest) -> None:  # pragma: no cover - t
         logging.exception("[slug_sync_timer] Storage unavailable during sync.")
     except Exception:
         logging.exception("[slug_sync_timer] Sync failed.")
-
-```}

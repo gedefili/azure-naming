@@ -18,7 +18,7 @@ def get_slug(resource_type: str) -> str:
     filter_query = f"FullName eq '{resource_type}'"
     try:
         table = get_table_client(_TABLE_NAME)
-        entities = list(table.query_entities(filter=filter_query))
+        entities = list(table.query_entities(query_filter=filter_query))
         if entities:
             entity = entities[0]
             return entity.get("Slug") or entity.get("RowKey")

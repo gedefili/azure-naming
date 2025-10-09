@@ -10,9 +10,13 @@ from typing import Optional
 
 try:
     from azure.core.exceptions import AzureError
+    from azure.data.tables import UpdateMode
 except ImportError:  # pragma: no cover - used during unit tests without Azure SDK
     class AzureError(Exception):
         """Fallback AzureError when the Azure SDK is unavailable."""
+
+    class UpdateMode:  # type: ignore
+        MERGE = "MERGE"
 
 from .slug_fetcher import get_all_remote_slugs
 from .storage import get_table_client
@@ -46,7 +50,7 @@ def sync_slug_definitions(connection_string: Optional[str] = None) -> int:
             "Source": "azure_defined_specs",
         }
         try:
-            table.upsert_entity(mode="Merge", entity=entity)
+            table.upsert_entity(mode=UpdateMode.MERGE, entity=entity)
             updated += 1
         except AzureError as exc:
             logging.warning("Failed to upsert slug %s: %s", slug, exc)

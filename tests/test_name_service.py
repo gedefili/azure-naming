@@ -9,7 +9,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils import name_service
+from utils import name_service, naming_rules
+from utils.providers.us_rules import USStrictRuleProvider
 from utils.user_settings import InMemorySettingsRepository, UserSettingsService
 
 
@@ -27,7 +28,6 @@ def test_generate_and_claim_name_success(monkeypatch):
     captured = {}
 
     monkeypatch.setattr(name_service, "get_slug", lambda resource_type: "st")
-    monkeypatch.setattr(name_service, "load_naming_rule", lambda _: {"segments": []})
 
     def fake_build_name(region, environment, slug, rule, optional_inputs):
         assert region == "wus2"
@@ -79,7 +79,6 @@ def test_generate_and_claim_name_conflict(monkeypatch):
         "environment": "dev",
     }
 
-    monkeypatch.setattr(name_service, "load_naming_rule", lambda _: {"segments": []})
     monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
     monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
     monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
@@ -114,7 +113,6 @@ def test_generate_and_claim_name_uses_user_defaults(monkeypatch):
 
     payload = {"project": "Finance"}
 
-    monkeypatch.setattr(name_service, "load_naming_rule", lambda _: {"segments": []})
     monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
     monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
     monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
@@ -319,3 +317,84 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
     assert len(audit_records) == expected_total
     # Ensure names are unique across combinations
     assert len(set(generated_names)) == expected_total
+
+
+def test_to_dict_includes_display(monkeypatch):
+    payload = {
+        "resource_type": "storage_account",
+        "region": "wus2",
+        "environment": "dev",
+    }
+
+    monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar-st-dev-wus2")
+    monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
+    monkeypatch.setattr(name_service, "claim_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "write_audit_log", lambda *args, **kwargs: None)
+
+    result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
+
+    body = result.to_dict()
+    assert "display" in body
+    assert any(entry["key"] == "name" for entry in body["display"])
+
+
+def test_us_provider_enforces_region(monkeypatch):
+    provider = USStrictRuleProvider()
+    original_provider = naming_rules.get_rule_provider()
+    naming_rules.set_rule_provider(provider)
+
+    payload = {
+        "resource_type": "storage_account",
+        "region": "weu",
+        "environment": "prd",
+        "system": "erp",
+        "purpose": "billing",
+    }
+
+    monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
+    monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
+    monkeypatch.setattr(name_service, "claim_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "write_audit_log", lambda *args, **kwargs: None)
+
+    try:
+        with pytest.raises(name_service.InvalidRequestError) as exc:
+            name_service.generate_and_claim_name(payload, requested_by="user@example.com")
+        assert "region" in str(exc.value)
+    finally:
+        naming_rules.set_rule_provider(original_provider)
+
+
+def test_us_provider_accepts_valid_payload(monkeypatch):
+    provider = USStrictRuleProvider()
+    original_provider = naming_rules.get_rule_provider()
+    naming_rules.set_rule_provider(provider)
+
+    payload = {
+        "resource_type": "storage_account",
+        "region": "wus",
+        "environment": "prd",
+        "system": "erp",
+        "purpose": "billing",
+        "index": "01",
+    }
+
+    captured = {}
+
+    monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar-st-erp-billing-prd-wus-01")
+    monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
+    monkeypatch.setattr(name_service, "claim_name", lambda **kwargs: captured.update(kwargs))
+    monkeypatch.setattr(name_service, "write_audit_log", lambda *args, **kwargs: None)
+
+    try:
+        result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
+        assert result.name == "sanmar-st-erp-billing-prd-wus-01"
+        assert result.rule is provider.get_rule("storage_account")
+        assert any(entry["key"] == "system" for entry in result.to_dict()["display"])
+    finally:
+        naming_rules.set_rule_provider(original_provider)

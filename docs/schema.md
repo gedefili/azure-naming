@@ -74,6 +74,31 @@ A valid name must:
 
 > Example: `st-sanmar-finance-costreports-dev-wus2`
 
+### 🔌 Custom Rule Providers
+
+Rules are supplied through a pluggable provider interface so you can swap in new storage mechanisms without touching the generation pipeline.
+
+* **Default source:** In-memory definitions from `DEFAULT_RULE_CONFIG` and `RESOURCE_RULE_CONFIG` within `utils/naming_rules.py`.
+* **Override at runtime:** Export `NAMING_RULE_PROVIDER` with a dotted path (for example `my_package.rules:get_provider`). The referenced attribute should return an object that exposes `get_rule(resource_type) -> NamingRule`.
+* **Programmatic swap:** Call `utils.naming_rules.set_rule_provider(...)` during startup to inject a custom provider.
+
+Each provider returns a `NamingRule` object describing segments, maximum length, prefix requirements, and the preferred presentation layout for response payloads. The name generator and validator consume this contract only, keeping rule evaluation and user-facing responses decoupled from where or how rules are stored.
+
+#### Example: Enforcing US-only Regions
+
+```bash
+export NAMING_RULE_PROVIDER="utils.providers.us_rules.get_provider"
+```
+
+The bundled `USStrictRuleProvider` overrides the storage account rule so that:
+
+* `region` must be one of `wus`, `wus2`, `eus`, or `eus1`.
+* `environment` must be one of `prd`, `stg`, `tst`, `uat`, or `alt`.
+* `system` and `purpose`/`subdomain` values are required to build the name.
+* Other metadata (project, index, etc.) remains optional.
+
+Any violation raises a validation error before a name is generated, producing a `400 Bad Request` response from the API.
+
 ---
 
 Next: [🚀 Deployment Guide](deployment.md)
