@@ -26,6 +26,7 @@ from typing import Sequence
 AZURITE_PORTS = (10000, 10001, 10002)
 FUNCTIONS_PORT = 7071
 DEBUG_PORT = 5678
+DEBUG_HOST = "127.0.0.1"
 
 # Marker strings consumed by VS Code background problem matchers
 PRINT_STACK_START = "__DEV_STACK_STARTING__"
@@ -65,6 +66,15 @@ def wait_for_port(host: str, port: int, timeout: float) -> None:
         except OSError:
             time.sleep(0.2)
     raise TimeoutError(f"Timeout waiting for {host}:{port}")
+
+
+def ensure_port_free(host: str, port: int) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError as exc:  # pragma: no cover - network state dependent
+            raise RuntimeError(f"Port {host}:{port} is already in use; stop the owning process or choose another port.") from exc
 
 
 def ensure_directory(path: Path) -> None:
@@ -107,12 +117,7 @@ def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | Non
             "mcr.microsoft.com/azure-storage/azurite",
         ]
 
-    proc = subprocess.Popen(
-        cmd,
-        cwd=root,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    proc = subprocess.Popen(cmd, cwd=root)
     manager.add(proc)
 
     # Give Azurite a moment before probing ports
@@ -120,7 +125,13 @@ def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | Non
         wait_for_port("127.0.0.1", port, timeout=20)
 
 
-def start_functions(root: Path, manager: ProcessManager, *, open_swagger: bool) -> None:
+def start_functions(
+    root: Path,
+    manager: ProcessManager,
+    *,
+    open_swagger: bool,
+    wait_for_client: bool,
+) -> None:
     env = os.environ.copy()
 
     venv_bin = root / ".venv" / ("Scripts" if os.name == "nt" else "bin")
@@ -129,20 +140,24 @@ def start_functions(root: Path, manager: ProcessManager, *, open_swagger: bool) 
         env["PATH"] = str(venv_bin) + path_sep + env.get("PATH", "")
         env.setdefault("VIRTUAL_ENV", str(root / ".venv"))
 
-    env.setdefault(
-        "languageWorkers__python__arguments",
-        "-m debugpy --listen 0.0.0.0:{port} --wait-for-client".format(port=DEBUG_PORT),
-    )
+    ensure_port_free(DEBUG_HOST, DEBUG_PORT)
 
-    func_cmd: Sequence[str] = ("func", "start", "--verbose")
+    debug_args = f"-m debugpy --listen {DEBUG_HOST}:{DEBUG_PORT}"
+    if wait_for_client:
+        debug_args += " --wait-for-client"
 
-    proc = subprocess.Popen(
-        func_cmd,
-        cwd=root,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    env.setdefault("FUNCTIONS_WORKER_PROCESS_COUNT", "1")
+    env.setdefault("languageWorkers__python__arguments", debug_args)
+
+    func_exe = shutil.which("func")
+    if not func_exe:
+        raise RuntimeError(
+            "Azure Functions Core Tools (func) not found on PATH. Install them or make sure they are accessible."
+        )
+
+    func_cmd: Sequence[str] = (func_exe, "start", "--verbose")
+
+    proc = subprocess.Popen(func_cmd, cwd=root, env=env)
     manager.add(proc)
 
     wait_for_port("127.0.0.1", FUNCTIONS_PORT, timeout=60)
@@ -164,11 +179,7 @@ def start_functions(root: Path, manager: ProcessManager, *, open_swagger: bool) 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Start local Azure Naming stack")
-    parser.add_argument(
-        "--no-browser",
-        action="store_true",
-        help="Do not launch the Swagger UI automatically.",
-    )
+    parser.add_argument("--no-browser", action="store_true", help="Do not launch the Swagger UI automatically.")
     parser.add_argument(
         "--use-docker",
         action="store_true",
@@ -178,6 +189,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--no-docker",
         action="store_true",
         help="Fail if the Azurite CLI is missing instead of falling back to Docker.",
+    )
+    parser.add_argument(
+        "--wait-for-client",
+        action="store_true",
+        help="Pause the Python worker until a debugger attaches.",
     )
     args = parser.parse_args(argv)
 
@@ -196,7 +212,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         start_azurite(root, manager, use_docker=args.use_docker if not args.no_docker else False)
-        start_functions(root, manager, open_swagger=not args.no_browser)
+        start_functions(
+            root,
+            manager,
+            open_swagger=not args.no_browser,
+            wait_for_client=args.wait_for_client,
+        )
         print(
             f"📡 Functions host running on http://localhost:{FUNCTIONS_PORT}.",
             f" Attach your debugger to port {DEBUG_PORT}.",

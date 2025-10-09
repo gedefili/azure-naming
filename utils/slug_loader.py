@@ -1,7 +1,7 @@
 # File: utils/slug_loader.py
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2025-07-24
-# Last Modified: 2025-07-24
+# Last Modified: 2025-10-08
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Loads and reconciles slug mappings into Azure Table Storage from the Azure naming HCL file.
 

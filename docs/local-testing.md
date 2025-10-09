@@ -127,6 +127,31 @@ python tools/start_local_stack.py  # add --no-browser to skip opening Swagger
 
 Stop debugging (or press `Ctrl+C` in the terminal) to tear everything down.
 
+#### What the bootstrap script starts and where it writes
+
+| Component | How it runs | Ports | Files & directories | Notes |
+| --- | --- | --- | --- | --- |
+| Azurite (storage emulator) | `azurite` CLI if available, otherwise `docker run mcr.microsoft.com/azure-storage/azurite` | `10000` (Blob), `10001` (Queue), `10002` (Table) | `./.azurite/` for persistent data and `./.azurite/debug.log` for CLI debug output | Removed when the Azurite process stops; Docker mode runs ephemeral containers with `--rm`. |
+| Azure Functions host | `func start --verbose` | `7071` HTTP listener | none | Spawns the Python worker and gRPC channels under the hood. |
+| Python worker + debugger | `debugpy` adapter spawned by Core Tools | `5678` | none | Allows VS Code to attach. Terminates automatically when the worker exits. |
+| Optional Swagger launch | `webbrowser.open()` | n/a | none | Only runs when `--no-browser` is not supplied. |
+
+The script traps `SIGINT`/`SIGTERM` and calls `terminate_all()` on every process it launches, ensuring those ports close cleanly when you stop the session. If the Terminal is force-closed, you can manually clear any leftover processes with:
+
+```bash
+pkill -f "mcr.microsoft.com/azure-storage/azurite"
+pkill -f "azure-functions-core-tools"
+pkill -f "debugpy/adapter"
+```
+
+To verify the stack is completely shut down, check that ports `5678`, `7071`, and `10000-10002` no longer appear in the listener list:
+
+```bash
+ss -ltnp | egrep ':(5678|7071|1000[0-2])'
+```
+
+An empty result (exit code `1`) confirms the environment is idle.
+
 ---
 
 ## 4. Request an Azure access token

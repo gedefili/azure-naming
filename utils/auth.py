@@ -1,7 +1,7 @@
 # File: sanmar_naming/utils/auth.py
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2025-07-24
-# Last Modified: 2025-07-24
+# Last Modified: 2025-10-08
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Shared utility for authenticating and authorizing users via Entra ID claims from EasyAuth.
 
@@ -139,7 +139,7 @@ def verify_jwt(headers: Dict[str, str]) -> dict:
         raise AuthError("Invalid token", status=401) from exc
 
 
-def require_role(headers: Dict[str, str], min_role: str = "reader") -> (str, List[str]):
+def require_role(headers: Dict[str, str], min_role: str = "reader") -> tuple[str, List[str]]:
     """Verify JWT and ensure the caller has at least the given role."""
 
     canonical_min_role = _canonicalize_role(min_role)

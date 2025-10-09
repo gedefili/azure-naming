@@ -1,6 +1,6 @@
 # File: utils/slug_fetcher.py
-# Version: 1.1.0
-# Last Modified: 2025-07-24
+# Version: 1.2.0
+# Last Modified: 2025-10-08
 # Authors: ChatGPT & Geoff DeFilippi
 # Summary: Fetches and parses slugs from the HCL 'defined_specs' file in Azure naming repo.
 
