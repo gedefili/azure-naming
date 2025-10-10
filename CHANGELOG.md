@@ -30,6 +30,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
 
 * Documentation and contributor guidelines now reference the modern module layout.
 
+### Fixed
+
+* Corrected the `/audit_bulk` route to pass `query_filter` when calling `TableClient.query_entities`, preventing runtime `TypeError` when query parameters are supplied.
+
 ---
 
 ## [1.2.0] - 2025-10-08

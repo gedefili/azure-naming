@@ -65,6 +65,12 @@ def _build_filter(params: Dict[str, str]) -> str:
     return " and ".join(filters)
 
 
+def _query_audit_entities(table, filter_query: str | None):
+    if filter_query:
+        return list(table.query_entities(query_filter=filter_query))
+    return list(table.list_entities())
+
+
 @app.function_name(name="audit_name")
 @app.route(route="audit", methods=[func.HttpMethod.GET])
 @openapi_doc(
@@ -214,9 +220,7 @@ def audit_bulk(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         table = get_table_client(AUDIT_TABLE_NAME)
-        entities = list(
-            table.query_entities(filter=filter_query) if filter_query else table.list_entities()
-        )
+        entities = _query_audit_entities(table, filter_query)
     except Exception:
         logging.exception("[audit_bulk] Failed to query audit logs.")
         return func.HttpResponse("Error retrieving audit logs.", status_code=500)
