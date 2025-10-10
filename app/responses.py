@@ -7,7 +7,7 @@ from typing import Mapping
 
 import azure.functions as func
 
-from utils.name_service import NameGenerationResult
+from core.name_service import NameGenerationResult
 
 
 def build_claim_response(result: NameGenerationResult, user_id: str) -> func.HttpResponse:

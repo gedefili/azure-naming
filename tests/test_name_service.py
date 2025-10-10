@@ -9,9 +9,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils import name_service, naming_rules
-from utils.providers.us_rules import USStrictRuleProvider
-from utils.user_settings import InMemorySettingsRepository, UserSettingsService
+from core import name_service, naming_rules
+from core.user_settings import InMemorySettingsRepository, UserSettingsService
+from providers.us_rules import USStrictRuleProvider
 
 
 def test_generate_and_claim_name_success(monkeypatch):
@@ -395,6 +395,10 @@ def test_us_provider_accepts_valid_payload(monkeypatch):
         result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
         assert result.name == "sanmar-st-erp-billing-prd-wus-01"
         assert result.rule is provider.get_rule("storage_account")
-        assert any(entry["key"] == "system" for entry in result.to_dict()["display"])
+        result_payload = result.to_dict()
+        assert any(entry["key"] == "system" for entry in result_payload["display"])
+        assert result_payload["summary"] == (
+            "Storage account 'sanmar-st-erp-billing-prd-wus-01' for system 'ERP' in PRD-WUS"
+        )
     finally:
         naming_rules.set_rule_provider(original_provider)

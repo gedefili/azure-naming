@@ -1,28 +1,3 @@
-# File: utils/slug.py
-# Version: 1.0.0
-# Last Modified: 2025-07-24
-# Authors: ChatGPT & Geoff DeFilippi
-# Summary: Lookup slug short codes for Azure resource types in Table Storage.
-"""Lookup slug short codes for Azure resource types."""
+"""Compatibility layer for the relocated `adapters.slug` module."""
 
-import logging
-
-from .storage import get_table_client
-
-_TABLE_NAME = "SlugMappings"
-
-
-def get_slug(resource_type: str) -> str:
-    """Retrieve the slug corresponding to a full resource type name."""
-    resource_type = resource_type.lower()
-    filter_query = f"FullName eq '{resource_type}'"
-    try:
-        table = get_table_client(_TABLE_NAME)
-        entities = list(table.query_entities(query_filter=filter_query))
-        if entities:
-            entity = entities[0]
-            return entity.get("Slug") or entity.get("RowKey")
-    except Exception as exc:
-        logging.error(f"Failed to fetch slug for {resource_type}: {exc}")
-
-    raise ValueError(f"Slug not found for resource type '{resource_type}'")
+from adapters.slug import *  # noqa: F401,F403

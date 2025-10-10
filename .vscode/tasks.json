@@ -23,10 +23,8 @@
       "problemMatcher": {
         "owner": "dev",
         "pattern": {
-          "regexp": "^.*$",
-          "file": 0,
-          "location": 0,
-          "message": 0
+          "regexp": ".*\\[error\\]\\s+(.*)$",
+          "message": 1
         },
         "background": {
           "activeOnStart": true,

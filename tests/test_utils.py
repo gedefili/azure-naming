@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import sys
@@ -10,7 +11,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils import name_generator, naming_rules, validation
+from adapters import slug as slug_adapter
+from adapters import slug_loader
+from core import name_generator, naming_rules, slug_service, validation
+from app.routes.docs import _normalise_openapi_spec
 
 
 def test_load_naming_rule_default():
@@ -52,6 +56,143 @@ def test_build_name_adds_prefix_when_required():
         optional_inputs={},
     )
     assert name == "sanmar-st-prod-wus2"
+
+
+def test_build_name_uses_template_when_defined():
+    rule = naming_rules.NamingRule(
+        segments=("slug", "region"),
+        max_length=50,
+        name_template="{slug}-{region}{index_segment}",
+    )
+    name = name_generator.build_name(
+        region="wus2",
+        environment="prod",
+        slug="st",
+        rule=rule,
+        optional_inputs={"index": "01"},
+    )
+    assert name == "st-wus2-01"
+
+
+def test_render_summary_uses_template():
+    rule = naming_rules.NamingRule(
+        segments=("slug",),
+        max_length=50,
+        summary_template="Name {name} in {environment_upper}-{region_upper}",
+    )
+    payload = {
+        "name": "resource",
+        "environment": "dev",
+        "region": "wus2",
+    }
+    summary = rule.render_summary(payload)
+    assert summary == "Name resource in DEV-WUS2"
+
+
+def test_normalise_openapi_spec_hoists_defs():
+    raw = {
+        "openapi": "3.0.0",
+        "paths": {
+            "/example": {
+                "get": {
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$defs": {
+                                            "Thing": {
+                                                "type": "object",
+                                                "properties": {"name": {"type": "string"}},
+                                            }
+                                        },
+                                        "properties": {
+                                            "item": {
+                                                "$ref": "#/$defs/Thing"
+                                            }
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    normalised = json.loads(_normalise_openapi_spec(json.dumps(raw)))
+    ref = normalised["paths"]["/example"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["properties"]["item"]["$ref"]
+    assert ref == "#/components/schemas/Thing"
+    assert normalised["components"]["schemas"]["Thing"]["type"] == "object"
+
+
+def test_normalise_openapi_spec_sets_server_base_path():
+    raw = {
+        "openapi": "3.0.0",
+        "paths": {},
+    }
+
+    normalised = json.loads(_normalise_openapi_spec(json.dumps(raw)))
+    assert {"url": "/api"} in normalised["servers"]
+
+
+def test_get_slug_supports_space_and_underscore_variants(monkeypatch):
+    class FakeTable:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        def query_entities(self, query_filter: str):
+            self.queries.append(query_filter)
+            if "FullName eq 'resource group'" in query_filter:
+                return [{"Slug": "rg"}]
+            return []
+
+    fake_table = FakeTable()
+    monkeypatch.setattr(slug_adapter, "get_table_client", lambda _: fake_table)
+
+    assert slug_adapter.get_slug("resource group") == "rg"
+    assert any("FullName eq 'resource group'" in query for query in fake_table.queries)
+
+
+def test_sync_slug_definitions_stores_canonical_and_human_names(monkeypatch):
+    inserted: list[dict[str, str]] = []
+
+    class FakeTable:
+        def upsert_entity(self, *, mode: str, entity: dict[str, str]) -> None:  # pragma: no cover - simple stub
+            inserted.append(entity)
+
+    monkeypatch.setattr(slug_loader, "get_all_remote_slugs", lambda: {"rg": "resource_group"})
+    monkeypatch.setattr(slug_loader, "get_table_client", lambda _: FakeTable())
+
+    updated = slug_loader.sync_slug_definitions()
+
+    assert updated == 1
+    assert inserted[0]["ResourceType"] == "resource_group"
+    assert inserted[0]["FullName"] == "resource group"
+
+
+def test_slug_service_can_register_custom_provider(monkeypatch):
+    original = slug_service.get_slug_providers()
+
+    class DummyProvider:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def get_slug(self, resource_type: str) -> str:
+            self.calls.append(resource_type)
+            if resource_type == "custom":
+                return "cs"
+            raise ValueError("Not found")
+
+    dummy = DummyProvider()
+    slug_service.set_slug_providers([dummy])
+
+    try:
+        assert slug_service.get_slug("custom") == "cs"
+        assert dummy.calls == ["custom"]
+    finally:
+        slug_service.set_slug_providers(original)
 
 
 def test_validate_name_success():

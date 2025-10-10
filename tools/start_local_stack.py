@@ -17,7 +17,6 @@ import socket
 import subprocess
 import sys
 import time
-import webbrowser
 from pathlib import Path
 from typing import Sequence
 
@@ -129,7 +128,6 @@ def start_functions(
     root: Path,
     manager: ProcessManager,
     *,
-    open_swagger: bool,
     wait_for_client: bool,
 ) -> None:
     env = os.environ.copy()
@@ -164,22 +162,11 @@ def start_functions(
 
     print(PRINT_FUNC_READY, flush=True)
 
-    if open_swagger:
-        # Wait until Swagger responds with HTTP 200 before opening the browser.
-        deadline = time.time() + 30
-        url = "http://localhost:7071/api/docs"
-        while time.time() < deadline:
-            try:
-                with socket.create_connection(("127.0.0.1", FUNCTIONS_PORT), timeout=2):
-                    webbrowser.open(url)
-                    break
-            except OSError:
-                time.sleep(0.5)
+    print(f"Swagger UI available at http://localhost:{FUNCTIONS_PORT}/api/docs", flush=True)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Start local Azure Naming stack")
-    parser.add_argument("--no-browser", action="store_true", help="Do not launch the Swagger UI automatically.")
     parser.add_argument(
         "--use-docker",
         action="store_true",
@@ -215,7 +202,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         start_functions(
             root,
             manager,
-            open_swagger=not args.no_browser,
             wait_for_client=args.wait_for_client,
         )
         print(

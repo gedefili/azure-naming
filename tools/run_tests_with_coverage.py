@@ -33,22 +33,22 @@ class Component:
 CRITICAL_COMPONENTS: tuple[Component, ...] = (
     Component(
         name="name_service",
-        paths=(ROOT / "utils" / "name_service.py",),
+        paths=(ROOT / "core" / "name_service.py",),
         threshold=0.80,
         description="Name generation orchestration and storage interactions.",
     ),
     Component(
         name="user_settings",
-        paths=(ROOT / "utils" / "user_settings.py",),
+        paths=(ROOT / "core" / "user_settings.py",),
         threshold=0.80,
         description="User preference management for default values.",
     ),
     Component(
         name="name_generation_core",
         paths=(
-            ROOT / "utils" / "name_generator.py",
-            ROOT / "utils" / "naming_rules.py",
-            ROOT / "utils" / "validation.py",
+            ROOT / "core" / "name_generator.py",
+            ROOT / "core" / "naming_rules.py",
+            ROOT / "core" / "validation.py",
         ),
         threshold=0.80,
         description="Rules and helpers that build and validate resource names.",
@@ -71,13 +71,13 @@ NON_CRITICAL_COMPONENT_NOTES = {
     ),
     "supporting_utilities": (
         (
-            ROOT / "utils" / "audit_logs.py",
-            ROOT / "utils" / "auth.py",
-            ROOT / "utils" / "release_name.py",
-            ROOT / "utils" / "slug.py",
-            ROOT / "utils" / "slug_fetcher.py",
-            ROOT / "utils" / "slug_loader.py",
-            ROOT / "utils" / "storage.py",
+            ROOT / "adapters" / "audit_logs.py",
+            ROOT / "adapters" / "release_name.py",
+            ROOT / "adapters" / "slug.py",
+            ROOT / "adapters" / "slug_fetcher.py",
+            ROOT / "adapters" / "slug_loader.py",
+            ROOT / "adapters" / "storage.py",
+            ROOT / "core" / "auth.py",
         ),
         "Supporting helpers that interact with external services. They require extensive integration"
         " testing and are exercised indirectly via higher-level components, so they are currently"

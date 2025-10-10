@@ -47,6 +47,7 @@ class NameClaimResponse(BaseModel):
     system: str | None = None
     index: str | None = None
     display: List[DisplayFieldEntry] = Field(default_factory=list)
+    summary: str | None = Field(default=None, description="Human-readable summary produced by the naming rule template.")
 
 
 class ReleaseRequest(BaseModel):
