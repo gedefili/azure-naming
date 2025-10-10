@@ -201,6 +201,8 @@ By default it looks for `AZURE_CLIENT_ID` and requests `api://<client-id>` acces
 
 The script wraps `az account get-access-token`, so make sure you are logged in with `az login` first.
 
+Need to create a dedicated client registration for testing? Follow the steps in [Authentication & RBAC](./auth.md#-create-a-test-client-application) before running these commands.
+
 ## 5. Explore the API with Swagger UI
 
 When the Functions host is running you can browse fully generated OpenAPI documentation at:

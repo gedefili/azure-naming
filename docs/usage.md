@@ -22,6 +22,52 @@ Tokens are validated using Entra ID. Your user must belong to one of the followi
 
 ---
 
+## 🧭 Discover Naming Rules
+
+Use the new read-only endpoints to explore name templates, segment ordering, and display metadata without digging into code.
+
+**GET** `/api/rules`
+
+Returns the list of resource types with explicit naming rules. Add `?expand=details` to embed the full specification for each rule.
+
+```json
+{
+  "resourceTypes": ["default", "storage_account"]
+}
+```
+
+**GET** `/api/rules/storage_account`
+
+Retrieves the JSON specification for a specific resource type, including the name template placeholders, display fields, and segment-to-input hints.
+
+```json
+{
+  "resourceType": "storage_account",
+  "maxLength": 24,
+  "requireSanmarPrefix": true,
+  "segments": ["slug", "system_short", "subdomain", "environment", "region", "index"],
+  "templateFields": [
+    {"name": "region", "type": "coreInput"},
+    {"name": "environment", "type": "coreInput"},
+    {"name": "slug", "type": "coreInput"},
+    {"name": "system_short", "type": "context"},
+    {"name": "index_segment", "type": "optionalSegment", "variantOf": "index"}
+  ],
+  "segmentMappings": [
+    {"segment": "slug", "source": "derived"},
+    {"segment": "system_short", "source": "payload", "aliases": ["system", "system_short"]}
+  ],
+  "payloadInputs": {
+    "required": ["resourceType", "region", "environment"],
+    "optional": ["project", "domain", "purpose", "subdomain", "system", "system_short", "index"]
+  }
+}
+```
+
+These endpoints respect the same RBAC requirements as other read APIs (`reader` role or higher).
+
+---
+
 ## 📤 Claim or Generate a Name
 
 **POST** `/api/claim`

@@ -11,6 +11,7 @@ import importlib
 import logging
 import os
 from dataclasses import dataclass
+from string import Formatter
 from typing import Callable, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence
 
 
@@ -116,6 +117,9 @@ class NamingRuleProvider(Protocol):
     def get_rule(self, resource_type: str) -> NamingRule:
         """Return a naming rule for the given resource type."""
 
+    def list_resource_types(self) -> Sequence[str]:
+        """Enumerate resource types with explicit rule definitions."""
+
 
 class DictionaryRuleProvider:
     """Default provider backed by in-memory rule dictionaries."""
@@ -131,6 +135,9 @@ class DictionaryRuleProvider:
     def get_rule(self, resource_type: str) -> NamingRule:  # pragma: no cover - trivial
         key = resource_type.lower()
         return self._resource_rules.get(key, self._default_rule)
+
+    def list_resource_types(self) -> Sequence[str]:  # pragma: no cover - simple getter
+        return tuple(sorted(self._resource_rules.keys()))
 
 
 def _build_display_fields(config: Optional[Iterable[Mapping[str, object]]]) -> Sequence[DisplayField]:
@@ -213,6 +220,54 @@ RESOURCE_RULE_CONFIG: Dict[str, Dict[str, object]] = {
 
 DEFAULT_DISPLAY_CONFIG: Sequence[Mapping[str, object]] = tuple(DEFAULT_RULE_CONFIG["display"])
 
+
+_TEMPLATE_FORMATTER = Formatter()
+
+
+def _extract_template_fields(template: str) -> List[Dict[str, str]]:
+    fields: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    for _, field_name, _, _ in _TEMPLATE_FORMATTER.parse(template):
+        if not field_name or field_name in seen:
+            continue
+        seen.add(field_name)
+        entry: Dict[str, str] = {"name": field_name}
+        if field_name.endswith("_segment"):
+            entry["type"] = "optionalSegment"
+            entry["variantOf"] = field_name[: -len("_segment")]
+        elif field_name in {"region", "environment", "slug"}:
+            entry["type"] = "coreInput"
+        else:
+            entry["type"] = "context"
+        fields.append(entry)
+    return fields
+
+
+_SEGMENT_ALIAS_HINTS: Dict[str, Sequence[str]] = {
+    "system_short": ("system", "system_short"),
+    "domain": ("project", "domain"),
+    "subdomain": ("purpose", "subdomain"),
+    "index": ("index",),
+}
+
+
+def _build_segment_mappings(rule: NamingRule) -> List[Dict[str, object]]:
+    mappings: List[Dict[str, object]] = []
+    for segment in rule.segments:
+        entry: Dict[str, object] = {"segment": segment}
+        if segment == "slug":
+            entry["source"] = "derived"
+            entry["description"] = "Slug generated from the resource type via slug providers."
+        elif segment in {"region", "environment"}:
+            entry["source"] = "payload"
+            entry["aliases"] = (segment,)
+        else:
+            entry["source"] = "payload"
+            entry["aliases"] = _SEGMENT_ALIAS_HINTS.get(segment, (segment,))
+        mappings.append(entry)
+    return mappings
+
+
 DEFAULT_RULE = _build_rule(DEFAULT_RULE_CONFIG, DEFAULT_RULE_CONFIG["segments"])
 RESOURCE_RULES = {
     key: _build_rule(config, DEFAULT_RULE.segments)
@@ -266,3 +321,64 @@ def load_naming_rule(resource_type: str) -> NamingRule:
     """Return the naming rule for the requested resource type."""
 
     return _provider.get_rule(resource_type)
+
+
+def list_resource_types(include_default: bool = True) -> Sequence[str]:
+    """Return the known resource types exposed by the active provider."""
+
+    provider = get_rule_provider()
+    resource_types: List[str] = []
+    if hasattr(provider, "list_resource_types"):
+        resource_types.extend(str(rt).lower() for rt in provider.list_resource_types())
+    if include_default and "default" not in resource_types:
+        resource_types.insert(0, "default")
+    # Preserve order while removing duplicates
+    seen: set[str] = set()
+    ordered: List[str] = []
+    for item in resource_types:
+        if item not in seen:
+            seen.add(item)
+            ordered.append(item)
+    return tuple(ordered)
+
+
+def describe_rule(resource_type: str) -> Dict[str, object]:
+    """Provide a user-friendly JSON-compatible description of a naming rule."""
+
+    normalised = resource_type.lower()
+    available = set(list_resource_types(include_default=True))
+    if normalised not in available:
+        raise KeyError(f"Unknown resource type '{resource_type}'. Known types: {sorted(available)}")
+
+    lookup_type = "__default__" if normalised == "default" else normalised
+    rule = load_naming_rule(lookup_type)
+
+    payload_required = ["resourceType", "region", "environment"]
+    segment_mappings = _build_segment_mappings(rule)
+    optional_aliases: set[str] = set()
+    for mapping in segment_mappings:
+        if mapping.get("source") == "payload" and mapping["segment"] not in {"region", "environment"}:
+            optional_aliases.update(mapping.get("aliases", []))
+
+    template_fields = []
+    if rule.name_template:
+        template_fields = _extract_template_fields(rule.name_template)
+
+    description: Dict[str, object] = {
+        "resourceType": normalised,
+        "maxLength": rule.max_length,
+        "requireSanmarPrefix": rule.require_sanmar_prefix,
+        "segments": list(rule.segments),
+        "optionalSegments": [segment for segment in rule.segments if segment not in {"slug", "region", "environment"}],
+        "displayFields": [field.to_dict() for field in rule.display_fields],
+        "nameTemplate": rule.name_template,
+        "summaryTemplate": rule.summary_template,
+        "templateFields": template_fields,
+        "segmentMappings": segment_mappings,
+        "payloadInputs": {
+            "required": payload_required,
+            "optional": sorted(optional_aliases),
+        },
+    }
+
+    return description

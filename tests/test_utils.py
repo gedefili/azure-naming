@@ -259,6 +259,9 @@ class StaticRuleProvider:
     def get_rule(self, resource_type: str):
         return self.rule
 
+    def list_resource_types(self):
+        return ("any",)
+
 
 def test_custom_rule_provider():
     original_provider = naming_rules.get_rule_provider()
@@ -273,3 +276,32 @@ def test_custom_rule_provider():
         assert naming_rules.load_naming_rule("any") is custom_rule
     finally:
         naming_rules.set_rule_provider(original_provider)
+
+
+def test_describe_rule_exposes_template_details():
+    original_provider = naming_rules.get_rule_provider()
+    custom_rule = naming_rules.NamingRule(
+        segments=("slug", "system_short", "environment", "region"),
+        max_length=30,
+        require_sanmar_prefix=True,
+        name_template="{slug}-{system_short}{index_segment}-{environment}-{region}",
+        display_fields=(
+            naming_rules.DisplayField(key="name", label="Name", optional=False),
+            naming_rules.DisplayField(key="system", label="System"),
+        ),
+    )
+    provider = StaticRuleProvider(custom_rule)
+
+    try:
+        naming_rules.set_rule_provider(provider)
+        spec = naming_rules.describe_rule("any")
+        assert spec["nameTemplate"] == custom_rule.name_template
+        assert any(field["name"] == "index_segment" for field in spec["templateFields"])
+        assert any(mapping["segment"] == "system_short" for mapping in spec["segmentMappings"])
+    finally:
+        naming_rules.set_rule_provider(original_provider)
+
+
+def test_list_resource_types_includes_default():
+    types = naming_rules.list_resource_types()
+    assert "default" in types

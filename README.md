@@ -69,7 +69,9 @@ Tokens are validated server-side; no function keys are required.
 
 ---
 
-## 🚀 Deploying
+## 🚀 Deploying (Paused)
+
+> Deployment to Azure is temporarily on hold while we focus on local workflows. Treat the checklist below as future-looking reference.
 
 * Provision Azure Storage + Function App (see [deployment.md](docs/deployment.md))
 * Create Tables: `ClaimedNames`, `AuditLogs`, `SlugMappings`
@@ -82,7 +84,7 @@ Tokens are validated server-side; no function keys are required.
 * [📘 Usage](docs/usage.md)
 * [🔐 Authentication & RBAC](docs/auth.md)
 * [🗃 Schemas, Naming Rules & Providers](docs/schema.md)
-* [🚀 Deployment Guide](docs/deployment.md)
+* [🚀 Deployment Guide](docs/deployment.md) — reference only until rollout resumes
 * [🧪 Local Development, Swagger & Postman](docs/local-testing.md)
 * [💰 10-Year Cost Estimate](docs/cost-estimate.md)
 

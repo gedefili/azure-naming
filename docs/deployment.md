@@ -47,6 +47,10 @@ Use Azure Storage Explorer or CLI to create the following tables in the same sto
 
 ---
 
+> ⚠️ **Deployment On Hold**
+>
+> The team is focused on local validation and API design work. Treat the steps below as reference only; production deployment is paused until the project is ready for rollout.
+
 ## 🔐 Entra ID Configuration
 
 ### App Registration

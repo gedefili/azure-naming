@@ -61,6 +61,11 @@ class USStrictRuleProvider:
             return self._storage_rule
         return self._base.get_rule(resource_type)
 
+    def list_resource_types(self) -> tuple[str, ...]:
+        base_types = set(self._base.list_resource_types())
+        base_types.add("storage_account")
+        return tuple(sorted(base_types))
+
 
 def get_provider() -> USStrictRuleProvider:
     """Factory used by the NAMING_RULE_PROVIDER environment variable."""

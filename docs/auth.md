@@ -88,6 +88,56 @@ Only variables that are present are enforced, so you can bootstrap the service w
 
 ---
 
+## 🧪 Create a Test Client Application
+
+Use these steps to provision a dedicated Entra ID app registration that you can use for local testing and token generation without affecting production clients.
+
+1. **Register a single-page or native client app** in the Entra admin portal.
+    * *Azure Portal → Entra ID → App registrations → New registration*
+    * Name it something like `AzureNamingTestClient`.
+    * Choose *Accounts in this organizational directory only*.
+    * For native testing, add a redirect URI such as `http://localhost:8400` (or leave empty if you will only use the CLI).
+2. **Grant your client access to the API.**
+        * Open the newly created registration → *Expose an API*.
+        * If the server-side Azure Naming registration has not been configured with roles yet, add them now under **App roles**. Create at least:
+                - `Sanmar Naming Reader` (`value`: `reader`, member type **Users/Groups**)
+                - `Sanmar Naming Contributor` (`value`: `contributor`, member type **Users/Groups**)
+                - `Sanmar Naming Admin` (`value`: `admin`, member type **Users/Groups**)
+            These three roles are sufficient for the built-in providers; additional roles may be required if you introduce custom providers or downstream systems with alternative access levels.
+        * Add an Application ID URI: `api://<server-app-client-id>` (this is the ID from the Azure Naming Function registration).
+        * Under *Scopes defined by this API* create at least one delegated permission if the list is empty:
+            1. Click **Add a scope**.
+            2. Set **Scope name** to `user_access` (or any descriptive value you prefer; avoid using `.default` here because it is a reserved alias, not an actual scope name).
+            3. Provide a display name/description such as “User access to Azure Naming API.”
+            4. Choose **Admins and users** for “Who can consent?” and mark the scope as **Enabled**.
+           The moment you define your first scope (e.g., `user_access`), Azure automatically exposes the `.default` shorthand. That means when you request a token you can specify `--scope api://<server-app-client-id>/.default` (or `--resource api://<server-app-client-id>`) and the resulting token will include every delegated scope you created, including `user_access`.
+3. **Assign App Roles to the test client.**
+    * Navigate to *Enterprise applications* → select your API (server) registration.
+    * Add your user account (or a service principal) to the `reader`, `contributor`, or `admin` roles as needed for testing.
+4. **(Optional) Create a Client Secret** if you plan to use confidential flows.
+    * *Certificates & secrets → New client secret.*
+    * Store the value in a safe location (`local.settings.json` and source control are not appropriate places).
+5. **Collect the IDs you will need locally:**
+    * `AZURE_CLIENT_ID` – the API (server) registration ID.
+    * `AZURE_TENANT_ID` – your Entra tenant ID.
+    * `TEST_CLIENT_ID` – the client registration ID from step 1 (used when authenticating with MSAL or the Azure CLI).
+6. **Request a token for the test client.**
+    * If you are using the Azure CLI:
+
+      ```bash
+      az account get-access-token \
+         --tenant "$AZURE_TENANT_ID" \
+         --client-id "$TEST_CLIENT_ID" \
+         --resource api://$AZURE_CLIENT_ID \
+         --query accessToken -o tsv
+      ```
+
+    * Or use `python tools/get_access_token.py --client-id $TEST_CLIENT_ID --resource api://$AZURE_CLIENT_ID`.
+
+Once the token flow succeeds you can copy the bearer token into Postman, curl, or the Swagger “Authorize” dialog to exercise the API.
+
+---
+
 ## 🔍 Logging & Auditing Access
 
 All authorization denials are logged with the user principal and operation.

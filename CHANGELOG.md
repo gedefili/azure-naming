@@ -5,6 +5,21 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.3.0] - 2025-10-09
+
+### Added
+
+* JSON discovery endpoints (`/api/rules` and `/api/rules/{resource_type}`) for naming templates and segment mappings.
+* Rule introspection helpers (`describe_rule`, `list_resource_types`) to power friendlier API responses and docs.
+* Documentation covering test client app registrations, naming rule exploration, and bearer token workflows.
+
+### Changed
+
+* Marked the deployment guide as on hold while rollout is deferred.
+* Clarified Entra scope creation, role setup, and `.default` usage in authentication docs.
+
+---
+
 ## [1.2.0] - 2025-10-08
 
 ### Added
@@ -17,8 +32,6 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
 * Modernized auth utility type hints to comply with current Python typing checks.
 
 ---
-
-## \[1.0.0] - 2025-07-24
 
 ## [1.1.0] - 2025-10-08
 
@@ -45,6 +58,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
   * Shared auth and slug validation utilities
   * Markdown documentation: usage, schema, deployment
   * Architecture diagram
+
+---
+
+## [1.0.0] - 2025-07-24
+
+### Added
+
+* Initial Azure Function-based naming service (see 1.1.0 entry for details)
 
 ---
 
