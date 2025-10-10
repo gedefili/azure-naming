@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:start-local-stack",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "tools/start_local_stack.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+          "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dev",
+        "pattern": {
+          "regexp": ".*\\[error\\]\\s+(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*__DEV_STACK_STARTING__.*",
+          "endsPattern": ".*__FUNC_HOST_READY__.*"
+        }
+      }
+    }
+  ]
+}

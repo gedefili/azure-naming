@@ -31,11 +31,11 @@ These are parsed in `utils/auth.py` and validated at runtime.
 
 The app supports the following Entra roles:
 
-| Role      | Description                                        |
-| --------- | -------------------------------------------------- |
-| `user`    | Can claim, release, and audit only their own names |
-| `manager` | Can audit *any* name or user history               |
-| `admin`   | Full control, provisioning access, future tools    |
+| Role | Description |
+| ---- | ----------- |
+| `reader` | View OpenAPI docs and query audit history for your own activity. |
+| `contributor` | Generate/release names and query audits (inherits reader access). |
+| `admin` | Full control, including cross-user audits and slug sync operations. |
 
 > 💡 Roles can be assigned via App Roles in Entra ID or via Group membership.
 
@@ -47,25 +47,26 @@ The shared function `require_role(headers, min_role)` is used by each endpoint.
 It checks the role hierarchy:
 
 ```python
-ROLE_HIERARCHY = ["user", "manager", "admin"]
+ROLE_HIERARCHY = ["reader", "contributor", "admin"]
 ```
 
 ### Example Usage:
 
 ```python
 try:
-    user, role = require_role(req.headers, min_role="user")
+    user, roles = require_role(req.headers, min_role="contributor")
 except AuthError as e:
     return func.HttpResponse(str(e), status_code=e.status)
 ```
 
 This pattern is used in:
 
-* `/claim`
-* `/release`
-* `/audit`
-* `/audit_bulk`
-* `/slug_sync`
+* `/claim` & `/generate` — require at least **contributor**.
+* `/release` — requires **contributor**.
+* `/audit` — requires **reader** (plus ownership unless you are an admin).
+* `/audit_bulk` — requires **reader**; cross-user queries restricted to **admin**.
+* `/slug_sync` — requires **admin**.
+* `/openapi.json` & `/docs` — require **reader**.
 
 The `/slug_sync_timer` function **does not** require authentication, as it's internal and time-triggered.
 
@@ -77,11 +78,11 @@ You may map Entra security groups to roles by resolving group claims in `auth.py
 
 Set the following environment variables to the corresponding Entra group object IDs:
 
-| Environment Variable            | Role Mapped |
-| ------------------------------- | ----------- |
-| `AZURE_ROLE_GROUP_USER`         | `user`      |
-| `AZURE_ROLE_GROUP_MANAGER`      | `manager`   |
-| `AZURE_ROLE_GROUP_ADMIN`        | `admin`     |
+| Environment Variable | Role Mapped |
+| -------------------- | ----------- |
+| `AZURE_ROLE_GROUP_READER` | `reader` |
+| `AZURE_ROLE_GROUP_CONTRIBUTOR` | `contributor` |
+| `AZURE_ROLE_GROUP_ADMIN` | `admin` |
 
 Only variables that are present are enforced, so you can bootstrap the service with App Roles and gradually add group mappings.
 

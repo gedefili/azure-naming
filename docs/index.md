@@ -21,7 +21,7 @@ Details how Entra ID is used for identity, and how role-based access control (RB
 ## 🗃 Schema and Naming Rules
 
 **[schema.md](schema.md)**
-Describes the structure and fields of Azure Table Storage entities: ClaimedNames, AuditLogs, SlugMappings. Covers naming format, constraints, and audit data.
+Describes table schemas, naming rule logic, and the pluggable provider architecture for rules and slug resolution.
 
 ---
 

@@ -53,7 +53,7 @@ Use Azure Storage Explorer or CLI to create the following tables in the same sto
 
 * Register a new app in Entra ID
 * Expose an API with scopes (e.g., `user_access`, `admin_access`)
-* Assign app roles: `user`, `manager`, `admin`
+* Assign app roles: `reader`, `contributor`, `admin`
 * Add users/groups to roles using Enterprise Applications → Users and Groups
 
 ### Set App Settings
