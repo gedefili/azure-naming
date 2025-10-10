@@ -14,8 +14,8 @@ This project is built using Azure Functions (Python) with:
 
 You’ll find:
 
-* Function endpoints in their own folders
-* Shared logic in `utils/`
+* Function endpoints in their own folders under `app/routes/`
+* Domain logic in `core/` and integration adapters in `adapters/`
 * Docs in `docs/`
 
 ---
@@ -34,7 +34,7 @@ You’ll find:
 
 * Follow the file headers format used in existing modules.
 * Add docstrings and inline comments for complex logic.
-* Keep functions SOLID and DRY — extract shared logic to `utils/`.
+* Keep functions SOLID and DRY — extract shared logic to `core/` or `adapters/` as appropriate.
 * Ensure RBAC is enforced using the `auth.check_access()` helper.
 * Add/update docs as needed in `docs/`.
 

@@ -90,7 +90,7 @@ Each provider returns a `NamingRule` object describing segments, maximum length,
 #### Example: Enforcing US-only Regions
 
 ```bash
-export NAMING_RULE_PROVIDER="utils.providers.us_rules.get_provider"
+export NAMING_RULE_PROVIDER="providers.us_rules.get_provider"
 ```
 
 The bundled `USStrictRuleProvider` overrides the storage account rule so that:

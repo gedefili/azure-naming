@@ -23,7 +23,7 @@ The following claims are extracted:
 | `roles`         | Assigned Entra roles        |
 | `email` / `upn` | Email or principal name     |
 
-These are parsed in `utils/auth.py` and validated at runtime.
+These are parsed in `core/auth.py` and validated at runtime.
 
 ---
 

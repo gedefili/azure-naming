@@ -20,6 +20,18 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
 
 ---
 
+## [1.3.1] - 2025-10-09
+
+### Removed
+
+* Deprecated `utils/` compatibility package now that all imports target the `core/`, `adapters/`, and `providers/` modules directly.
+
+### Changed
+
+* Documentation and contributor guidelines now reference the modern module layout.
+
+---
+
 ## [1.2.0] - 2025-10-08
 
 ### Added
