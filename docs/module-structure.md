@@ -22,7 +22,14 @@ azure-naming/
 │   ├── responses.py            # Helper builders for HttpResponse payloads
 │   └── errors.py               # Shared exception types + error mappers
 │
-└── utils/                      # Existing domain helpers remain here
+├── core/
+│   ├── name_service.py         # Orchestrates generation + persistence flows
+│   ├── name_generator.py       # Builds names from rules
+│   ├── naming_rules.py         # Default rules + pluggable rule provider
+│   ├── slug_service.py         # Pluggable slug provider chain
+│   └── validation.py           # Shared validation logic
+│
+└── adapters/                   # Integration points (Azure Tables, slug fetcher, audit logs)
 ```
 
 ## Why split things up?
@@ -32,6 +39,7 @@ azure-naming/
 | Large 600+ line file mixes HTTP decorators, validation, and response plumbing. | Routes become small modules that import shared helpers, keeping each file focused. |
 | Pydantic models sit far from the endpoints that use them, leading to scrolling and merge friction. | All schemas live in `app/models.py`; routes import the ones they need. |
 | Helper functions (e.g., `_build_claim_response`) are hidden in the middle of the file and duplicated for new routes. | Helpers move into `responses.py` / `dependencies.py`, encouraging reuse. |
+| Slug and naming logic lived in `utils/` as ad-hoc modules. | Domain logic is organized under `core/` with clear provider interfaces and adapters for external dependencies. |
 | Testing routes directly requires importing the entire `function_app.py` module. | Unit tests can import specific route modules, while integration tests still use the full FunctionApp. |
 
 ## Migration guide

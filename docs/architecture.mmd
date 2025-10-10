@@ -3,10 +3,13 @@ graph TD
     User[User] -->|"HTTPS request"| AzureFn["Azure Functions"]
     AzureFn -->|"Validate token"| EntraID["Entra ID"]
     AzureFn -->|"Read/Write"| Table["Azure Table Storage"]
-    AzureFn -->|"Fetch slugs"| GitHub["GitHub"]
+    AzureFn -->|"Resolve slug"| SlugSvc["Slug Provider Chain"]
+    SlugSvc -->|"Table lookup"| SlugMappings[("SlugMappings")]
+    SlugSvc -->|"Default sync"| GitHub["GitHub"]
     Timer["slug_sync_timer"] -->|"Weekly trigger"| AzureFn
     Table --> ClaimedNames[("ClaimedNames")]
     Table --> AuditLogs[("AuditLogs")]
-    Table --> SlugMappings[("SlugMappings")]
+    Table --> SlugMappings
     GitHub -->|"Slug specs"| SlugMappings
 ``` 
+The slug provider chain is pluggable: the function runtime queries each registered provider until one returns a slug. The default provider reads from Azure Table Storage (refreshed by the GitHub `defined_specs` sync), but additional providers can be added ahead of it to pull slugs from internal services or caches.

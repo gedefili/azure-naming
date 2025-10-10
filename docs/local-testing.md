@@ -93,6 +93,13 @@ If the command is still not found, open a new terminal so your updated `PATH` is
      | `AZURE_ROLE_GROUP_CONTRIBUTOR` | GUID for the **Sanmar Naming Contributor** group/app role. |
      | `AZURE_ROLE_GROUP_ADMIN` | GUID for the **Sanmar Naming Admin** group/app role. |
 
+   - To override the pluggable providers used by the application, set one or both of the following:
+
+     | Variable | Description |
+     | --- | --- |
+     | `NAMING_RULE_PROVIDER` | Dotted path to a callable or object that returns a provider with `get_rule(resource_type) -> NamingRule`. |
+     | `SLUG_PROVIDER` | Dotted path to a callable or object (or sequence) that yields providers implementing `get_slug(resource_type) -> str`. |
+
    > ⚠️ Keep the bypass disabled in shared or hosted environments. It is intended only for isolated local testing.
 
 ---
@@ -116,13 +123,13 @@ If you use VS Code, the repository includes a helper script (`tools/start_local_
   - ensure `.venv` is active for the session,
   - start Azurite (CLI or Docker fallback),
   - launch `func start` with `debugpy` listening on port `5678`, and
-  - open the Swagger UI (`http://localhost:7071/api/docs`).
+  - print the Swagger UI URL (`http://localhost:7071/api/docs`) once the host is ready.
 3. VS Code attaches to the waiting debug session once the Functions worker is ready.
 
 You can also invoke the helper manually:
 
 ```bash
-python tools/start_local_stack.py  # add --no-browser to skip opening Swagger
+python tools/start_local_stack.py
 ```
 
 Stop debugging (or press `Ctrl+C` in the terminal) to tear everything down.
@@ -134,7 +141,7 @@ Stop debugging (or press `Ctrl+C` in the terminal) to tear everything down.
 | Azurite (storage emulator) | `azurite` CLI if available, otherwise `docker run mcr.microsoft.com/azure-storage/azurite` | `10000` (Blob), `10001` (Queue), `10002` (Table) | `./.azurite/` for persistent data and `./.azurite/debug.log` for CLI debug output | Removed when the Azurite process stops; Docker mode runs ephemeral containers with `--rm`. |
 | Azure Functions host | `func start --verbose` | `7071` HTTP listener | none | Spawns the Python worker and gRPC channels under the hood. |
 | Python worker + debugger | `debugpy` adapter spawned by Core Tools | `5678` | none | Allows VS Code to attach. Terminates automatically when the worker exits. |
-| Optional Swagger launch | `webbrowser.open()` | n/a | none | Only runs when `--no-browser` is not supplied. |
+| Swagger URL hint | Printed to terminal | n/a | none | Copy/paste `http://localhost:7071/api/docs` into your browser when ready. |
 
 The script traps `SIGINT`/`SIGTERM` and calls `terminate_all()` on every process it launches, ensuring those ports close cleanly when you stop the session. If the Terminal is force-closed, you can manually clear any leftover processes with:
 
@@ -273,7 +280,7 @@ pytest
 
 | Symptom | Fix |
 | ------- | --- |
-| `403 Forbidden` responses while bypass is enabled | Ensure `LOCAL_BYPASS_ROLES` includes the role required by the endpoint (e.g., `manager` for bulk audit). |
+| `403 Forbidden` responses while bypass is enabled | Ensure `LOCAL_BYPASS_ROLES` includes the role required by the endpoint (e.g., `admin` for cross-user bulk audit). |
 | Functions host cannot connect to storage | Confirm Azurite is running and `AzureWebJobsStorage` is set to `UseDevelopmentStorage=true`. |
 | Still prompted for bearer token | Check that `ALLOW_LOCAL_AUTH_BYPASS` is `true` in the environment where the host is running. |
 

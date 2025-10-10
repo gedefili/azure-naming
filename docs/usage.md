@@ -16,9 +16,9 @@ Authorization: Bearer <access_token>
 
 Tokens are validated using Entra ID. Your user must belong to one of the following roles:
 
-* `user` — basic access to claim/release/audit personal usage
-* `manager` — privileged access to view any audit log
-* `admin` — all manager permissions plus provisioning
+* `reader` — basic access to view docs and audit your own usage
+* `contributor` — create/claim/release names and run slug sync
+* `admin` — full contributor permissions plus cross-user audit access
 
 ---
 
@@ -56,6 +56,7 @@ You can also call **POST** `/api/generate` if you prefer to keep the claim-speci
   "system": "erp",
   "index": "01",
   "claimedBy": "<user object id>",
+  "summary": null,
   "display": [
     {"key": "name", "label": "Storage Account Name", "value": "sanmar-st-finance-costreports-dev-wus2-01"},
     {"key": "resourceType", "label": "Resource Type", "value": "storage_account"},
@@ -140,7 +141,7 @@ Returns the claim/release history for a specific name.
 * `action` – `claimed` or `released`
 * `start` / `end` – ISO 8601 timestamps for filtering by event time
 
-> ℹ️ Querying users other than yourself requires the `manager` or `admin` role.
+> ℹ️ Querying users other than yourself requires the `admin` role.
 
 ### Returns:
 
@@ -179,7 +180,10 @@ Manually refreshes slug definitions from the GitHub `defined_specs` file and upd
 }
 ```
 
-This endpoint is RBAC-protected and requires the `user` role or higher.
+> ℹ️ The `summary` field is populated when the active naming rule defines a summary template; otherwise it is `null`.
+> 📌 This example reflects the built-in `USStrictRuleProvider` (`providers.us_rules`) layered on top of the default rule set. If you register a custom naming rule provider the returned fields may differ.
+
+This endpoint is RBAC-protected and requires the `contributor` role or higher. The sync process populates `ResourceType` (canonical underscore format) and `FullName` (human-readable with spaces) so that the pluggable slug providers can resolve either input style.
 
 ---
 
