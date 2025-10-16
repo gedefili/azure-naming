@@ -1,0 +1,16 @@
+# Map file globs to labels applied automatically by the labeler action
+templates:
+  - pattern: "docs/**"
+    labels: ["docs"]
+  - pattern: "tests/**"
+    labels: ["tests"]
+  - pattern: "**/*.md"
+    labels: ["documentation"]
+  - pattern: "**/requirements*.txt"
+    labels: ["dependencies"]
+  - pattern: "adapters/**"
+    labels: ["integration"]
+  - pattern: "core/**"
+    labels: ["core"]
+  - pattern: ".github/workflows/**"
+    labels: ["ci"]
