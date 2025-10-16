@@ -7,3 +7,9 @@ updates:
     open-pull-requests-limit: 5
     allow:
       - dependency-type: "all"
+    # Add labels so the labeler and maintainers can filter dependency PRs
+    labels:
+      - dependencies
+      - automation
+    # Only raise updates for minor/patch versions to reduce churn
+    versioning-strategy: increase

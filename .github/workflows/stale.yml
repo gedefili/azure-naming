@@ -1,0 +1,19 @@
+name: Stale
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # weekly
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v6
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity. Please comment or update the issue if it is still relevant.'
+          close-issue-message: 'Closing this issue as stale. Feel free to reopen if you still need this.'
+          operations-per-run: 30
