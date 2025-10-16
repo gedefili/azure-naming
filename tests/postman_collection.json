@@ -5,6 +5,10 @@
     "description": "Collection to exercise slug lookup, slug sync, claim and release endpoints against a local function host.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    { "key": "host", "value": "http://localhost:7071" },
+    { "key": "auth_token", "value": "" }
+  ],
   "item": [
     {
       "name": "Slug Lookup",
@@ -12,10 +16,9 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:7071/api/slug?resource_type=storage_account",
+          "raw": "{{host}}/api/slug?resource_type=storage_account",
           "protocol": "http",
-          "host": ["localhost"],
-          "port": "7071",
+          "host": ["{{host}}"],
           "path": ["api", "slug"],
           "query": [{ "key": "resource_type", "value": "storage_account" }]
         }
@@ -25,12 +28,11 @@
       "name": "Slug Sync (POST)",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [ { "key": "Authorization", "value": "Bearer {{auth_token}}" } ],
         "url": {
-          "raw": "http://localhost:7071/api/slug_sync",
+          "raw": "{{host}}/api/slug_sync",
           "protocol": "http",
-          "host": ["localhost"],
-          "port": "7071",
+          "host": ["{{host}}"],
           "path": ["api", "slug_sync"]
         }
       }
@@ -39,16 +41,18 @@
       "name": "Claim Name",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\",\n  \"resource_type\": \"storage_account\"\n}"
         },
         "url": {
-          "raw": "http://localhost:7071/api/claim",
+          "raw": "{{host}}/api/claim",
           "protocol": "http",
-          "host": ["localhost"],
-          "port": "7071",
+          "host": ["{{host}}"],
           "path": ["api", "claim"]
         }
       }
@@ -57,16 +61,18 @@
       "name": "Release Name",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}"
         },
         "url": {
-          "raw": "http://localhost:7071/api/release",
+          "raw": "{{host}}/api/release",
           "protocol": "http",
-          "host": ["localhost"],
-          "port": "7071",
+          "host": ["{{host}}"],
           "path": ["api", "release"]
         }
       }
