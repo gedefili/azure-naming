@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Tuple
+from typing import Dict, Optional, Tuple
 
 import azure.functions as func
 from azure_functions_openapi.decorator import openapi as openapi_doc
 
 from app import app
 from app.constants import SLUG_PARTITION_KEY, SLUG_TABLE_NAME
-from app.models import MessageResponse
-from app.responses import json_message
+from app.models import MessageResponse, SlugLookupResponse
+from app.responses import json_message, json_payload
 from app.dependencies import (
     AuthError,
     AzureError,
@@ -20,8 +20,110 @@ from app.dependencies import (
     UpdateMode,
     get_all_remote_slugs,
     get_table_client,
+    ResourceNotFoundError,
     require_role,
 )
+from core.slug_service import get_slug
+
+
+def _resolve_slug_payload(resource_type: str) -> Dict[str, str]:
+    cleaned = resource_type.strip()
+    if not cleaned:
+        raise ValueError("resource_type cannot be empty")
+    slug_value = get_slug(cleaned)
+    resource_metadata: Dict[str, Optional[str]] = {}
+    resolved_resource_type = cleaned
+
+    try:
+        table = get_table_client(SLUG_TABLE_NAME)
+        entity: Optional[Dict[str, object]] = None
+
+        try:
+            entity = table.get_entity(partition_key=SLUG_PARTITION_KEY, row_key=slug_value)
+        except ResourceNotFoundError:
+            escaped_resource = cleaned.lower().replace("'", "''")
+            filter_query = f"ResourceType eq '{escaped_resource}'"
+            entities = list(table.query_entities(query_filter=filter_query))
+            entity = entities[0] if entities else None
+
+        if entity:
+            resolved_resource_type = str(entity.get("ResourceType") or resolved_resource_type)
+            # Include all non-personal metadata fields present on the entity.
+            for key, val in entity.items():
+                if key in {"PartitionKey", "RowKey"}:
+                    continue
+                # Avoid returning anything that looks like a person identifier
+                if isinstance(key, str) and key.lower() in {"claimedby", "releasedby", "user", "email", "upn"}:
+                    continue
+                # Normalize keys to camelCase in the response
+                normalized_key = key[0].lower() + key[1:] if key else key
+                resource_metadata[normalized_key] = val
+    except Exception:
+        logging.exception("[slug_lookup] Failed to hydrate slug metadata.")
+
+    payload: Dict[str, str] = {
+        "resourceType": resolved_resource_type.strip().lower(),
+        "slug": slug_value,
+    }
+
+    for key, value in resource_metadata.items():
+        if value:
+            payload[key] = str(value)
+
+    return payload
+
+
+@app.function_name(name="get_slug_mapping")
+@app.route(route="slug", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+@openapi_doc(
+    summary="Resolve a slug for a resource type",
+    description="Returns the short slug used when generating names for the requested resource type.",
+    tags=["Slugs"],
+    parameters=[
+        {
+            "name": "resource_type",
+            "in": "query",
+            "required": True,
+            "schema": {"type": "string"},
+            "description": "Canonical resource type identifier (for example, storage_account).",
+        }
+    ],
+    response_model=SlugLookupResponse,
+    operation_id="getSlug",
+    route="/slug",
+    method="get",
+)
+def slug_lookup(req: func.HttpRequest) -> func.HttpResponse:
+    """Resolve the slug for a given resource type."""
+
+    return _handle_slug_lookup(req)
+
+
+def _handle_slug_lookup(req: func.HttpRequest) -> func.HttpResponse:
+    """Core implementation shared with tests for slug lookup."""
+
+    logging.info("[slug_lookup] Resolving slug for resource type query.")
+
+    try:
+        require_role(req.headers, min_role="reader")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
+
+    resource_type = (req.params.get("resource_type") or req.params.get("resourceType") or "").strip()
+    if not resource_type:
+        return func.HttpResponse("Query parameter 'resource_type' is required.", status_code=400)
+
+    normalised = resource_type.lower()
+
+    try:
+        payload = _resolve_slug_payload(resource_type)
+        return json_payload(payload)
+    except ValueError:
+        logging.info("[slug_lookup] No slug mapping found for resource type '%s'.", normalised)
+        return json_message(f"Slug not found for resource type '{normalised}'.", status_code=404)
+    except Exception:
+        logging.exception("[slug_lookup] Unexpected error while resolving slug.")
+        return json_message("Slug lookup failed.", status_code=500)
 
 
 def _perform_slug_sync() -> Tuple[int, str]:

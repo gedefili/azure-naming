@@ -61,7 +61,8 @@ except AuthError as e:
 
 This pattern is used in:
 
-* `/claim` & `/generate` — require at least **contributor**.
+* `/claim` — requires at least **contributor**.
+* `/slug` — requires **reader**.
 * `/release` — requires **contributor**.
 * `/audit` — requires **reader** (plus ownership unless you are an admin).
 * `/audit_bulk` — requires **reader**; cross-user queries restricted to **admin**.

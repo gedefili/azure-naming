@@ -13,7 +13,7 @@ azure-naming/
 │   ├── __init__.py             # Exposes the shared FunctionApp instance
 │   ├── routes/
 │   │   ├── __init__.py         # Registers all HTTP + timer routes
-│   │   ├── names.py            # /claim, /generate, /release handlers
+│   │   ├── names.py            # /claim and /release handlers
 │   │   ├── audit.py            # /audit and /audit_bulk handlers
 │   │   └── slug.py             # /slug_sync and timer-based sync
 │   │
@@ -25,7 +25,7 @@ azure-naming/
 ├── core/
 │   ├── name_service.py         # Orchestrates generation + persistence flows
 │   ├── name_generator.py       # Builds names from rules
-│   ├── naming_rules.py         # Default rules + pluggable rule provider
+│   ├── naming_rules.py         # JSON-backed rule provider + pluggable hooks
 │   ├── slug_service.py         # Pluggable slug provider chain
 │   └── validation.py           # Shared validation logic
 │
@@ -49,7 +49,7 @@ azure-naming/
    runtime happy.
 2. **Relocate models** from `function_app.py` to `app/models.py`. Update
    references in the route modules.
-3. **Extract route handlers** (`claim`, `generate`, `release`, `audit`, etc.)
+3. **Extract route handlers** (`claim`, `release`, `audit`, etc.)
    into `app/routes/*`. Each module imports the shared `FunctionApp` and
    registers its routes using decorators.
 4. **Add shared helpers** (`dependencies.py`, `responses.py`, `errors.py`) to

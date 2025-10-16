@@ -61,7 +61,6 @@ NON_CRITICAL_COMPONENT_NOTES = {
             ROOT / "audit_bulk",
             ROOT / "audit_name",
             ROOT / "claim_name",
-            ROOT / "generate_names",
             ROOT / "release_name",
             ROOT / "slug_sync",
             ROOT / "slug_sync_timer",

@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "name": "US storage account overlay",
+    "priority": 100,
+    "enabled": false,
+    "description": "Stricter validation for US-based storage accounts. Toggle `enabled` to true to activate."
+  },
+  "resources": {
+    "storage_account": {
+      "max_length": 24,
+      "require_sanmar_prefix": true,
+      "segments": [
+        "slug",
+        "system_short",
+        "subdomain",
+        "environment",
+        "region",
+        "index"
+      ],
+      "display": [
+        { "key": "name", "label": "Storage Account Name", "optional": false },
+        { "key": "resourceType", "label": "Resource Type", "optional": false },
+        { "key": "slug", "label": "Slug", "optional": false },
+        { "key": "environment", "label": "Environment", "optional": false },
+        { "key": "region", "label": "Region", "optional": false },
+        { "key": "project", "label": "Project" },
+        { "key": "purpose", "label": "Subsystem" },
+        { "key": "system", "label": "System", "optional": false },
+        { "key": "index", "label": "Index" }
+      ],
+      "name_template": "{region}-{environment}-{slug}-{system_short}{index_segment}",
+      "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
+      "validators": {
+        "allowed_values": {
+          "region": ["wus", "wus2", "eus", "eus1"],
+          "environment": ["prd", "stg", "tst", "uat", "alt"]
+        },
+        "require_any": {
+          "system": ["system", "system_short"],
+          "subsystem": ["purpose", "subdomain"]
+        }
+      }
+    }
+  }
+}

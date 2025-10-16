@@ -80,8 +80,8 @@ A valid name must:
 
 Rules are supplied through a pluggable provider interface so you can swap in new storage mechanisms without touching the generation pipeline.
 
-* **Default source:** In-memory definitions from `DEFAULT_RULE_CONFIG` and `RESOURCE_RULE_CONFIG` within `core/naming_rules.py`.
-* **Bundled override:** At startup the application also wires in `providers.us_rules.get_provider()` (exposed as *USStrictRuleProvider*) to apply SanMar’s US-centric constraints.
+* **Default source:** Layered JSON definitions in `rules/*.json` (override with `NAMING_RULES_PATH=/path/to/directory` or the legacy `NAMING_RULES_FILE=/path/to/file`). Files are merged by `metadata.priority`, letting you ship optional overlays alongside the base rule set. See `rules/README.md` for the schema.
+* **Bundled overlay:** The repository ships layered JSON examples such as `rules/us_strict.json` that can be toggled via `metadata.enabled` to introduce stricter validation without writing Python code.
 * **Override at runtime:** Export `NAMING_RULE_PROVIDER` with a dotted path (for example `my_package.rules:get_provider`). The referenced attribute should return an object that exposes `get_rule(resource_type) -> NamingRule`.
 * **Programmatic swap:** Call `core.naming_rules.set_rule_provider(...)` during startup to inject a custom provider.
 
@@ -90,10 +90,10 @@ Each provider returns a `NamingRule` object describing segments, maximum length,
 #### Example: Enforcing US-only Regions
 
 ```bash
-export NAMING_RULE_PROVIDER="providers.us_rules.get_provider"
+cp rules/us_strict.json rules/us_strict.local.json  # edit and enable the overlay
 ```
 
-The bundled `USStrictRuleProvider` overrides the storage account rule so that:
+The strict overlay constrains the storage account rule so that:
 
 * `region` must be one of `wus`, `wus2`, `eus`, or `eus1`.
 * `environment` must be one of `prd`, `stg`, `tst`, `uat`, or `alt`.
@@ -104,7 +104,7 @@ Any violation raises a validation error before a name is generated, producing a 
 
 ### Extending with New Rules
 
-1. Create a module that exposes either a provider class with `get_rule(resource_type) -> NamingRule` or a factory function that returns such an object (see `providers/us_rules.py` for a working example).
+1. Create a module that exposes a provider class with `get_rule(resource_type) -> NamingRule` or a factory function returning such an object (mirroring the JSON provider contract if you need custom logic).
 2. Register the provider by setting `NAMING_RULE_PROVIDER="your.module:get_provider"` or by calling `core.naming_rules.set_rule_provider(...)` during startup.
 3. (Optional) Layer the new provider with the existing ones by returning a sequence from your factory if you want to keep the US rules alongside custom logic.
 4. Update automated tests and documentation to reflect the new rule behavior.

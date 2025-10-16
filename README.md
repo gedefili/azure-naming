@@ -45,7 +45,7 @@ graph TD
 ## 📄 Endpoints
 
 * `POST /api/claim` — generate and reserve a name
-* `POST /api/generate` — legacy alias for claim
+* `GET  /api/slug?resource_type=` — resolve the slug for a resource type
 * `POST /api/release` — release an existing name
 * `GET  /api/audit?name=` — audit a single name
 * `GET  /api/audit_bulk?...` — audit a user/project/time
@@ -96,7 +96,7 @@ Both naming rules and slug resolution use a **pluggable provider architecture**.
 
 | Extension Point | Default Provider | How to Override |
 | --------------- | ---------------- | --------------- |
-| Naming rules    | `core.naming_rules.DEFAULT_RULE` and `RESOURCE_RULES` | Set `NAMING_RULE_PROVIDER` to a `module.callable` that returns an object with `get_rule(resource_type)` or call `core.naming_rules.set_rule_provider(...)` during startup. |
+| Naming rules    | Layered JSON definitions in `rules/*.json` loaded by `core.naming_rules` | Set `NAMING_RULE_PROVIDER` to a `module.callable` that returns an object with `get_rule(resource_type)` or call `core.naming_rules.set_rule_provider(...)` during startup. Override the rules directory with `NAMING_RULES_PATH=/path/to/dir` (legacy `NAMING_RULES_FILE` still supported). |
 | Slugs           | `adapters.slug.TableSlugProvider` via `core.slug_service` | Set `SLUG_PROVIDER` to a `module.attr` that returns one or more providers implementing `get_slug(resource_type)` or call `core.slug_service.set_slug_providers([...])`. |
 
 Providers are evaluated in order until one succeeds. This makes it straightforward to layer in custom data sources (for example, in-memory caches, REST lookups, or alternative storage) while keeping the rest of the system unchanged.

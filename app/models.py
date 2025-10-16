@@ -66,6 +66,16 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class SlugLookupResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    resourceType: str = Field(..., description="Canonical resource type used for slug resolution.")
+    slug: str = Field(..., description="Resolved short code for the resource type.")
+    fullName: str | None = Field(default=None, description="Human-readable label for the resource type, when available.")
+    source: str | None = Field(default=None, description="Origin of the slug mapping (for example, azure_defined_specs).")
+    updatedAt: str | None = Field(default=None, description="Timestamp of the most recent slug sync entry, when available.")
+
+
 class AuditRecordResponse(BaseModel):
     name: str
     resource_type: str

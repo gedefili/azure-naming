@@ -11,8 +11,9 @@ import importlib
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from string import Formatter
-from typing import Callable, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence
+from typing import Callable, Dict, List, Mapping, Optional, Protocol, Sequence
 
 
 class _SafeFormatDict(dict):
@@ -122,7 +123,7 @@ class NamingRuleProvider(Protocol):
 
 
 class DictionaryRuleProvider:
-    """Default provider backed by in-memory rule dictionaries."""
+    """In-memory provider useful for tests and composed providers."""
 
     def __init__(
         self,
@@ -134,91 +135,45 @@ class DictionaryRuleProvider:
 
     def get_rule(self, resource_type: str) -> NamingRule:  # pragma: no cover - trivial
         key = resource_type.lower()
+        if key in {"default", "__default__"}:
+            return self._default_rule
         return self._resource_rules.get(key, self._default_rule)
 
     def list_resource_types(self) -> Sequence[str]:  # pragma: no cover - simple getter
-        return tuple(sorted(self._resource_rules.keys()))
+        keys = set(self._resource_rules.keys())
+        keys.add("default")
+        return tuple(sorted(keys))
 
 
-def _build_display_fields(config: Optional[Iterable[Mapping[str, object]]]) -> Sequence[DisplayField]:
-    fields: List[DisplayField] = []
-    for item in config or DEFAULT_DISPLAY_CONFIG:
-        key = str(item.get("key"))
-        label = str(item.get("label", key.replace("_", " ").title()))
-        description = item.get("description")
-        optional = bool(item.get("optional", True))
-        fields.append(
-            DisplayField(
-                key=key,
-                label=label,
-                description=str(description) if description else None,
-                optional=optional,
-            )
-        )
-    return tuple(fields)
+_RULES_PATH_ENV = "NAMING_RULES_PATH"
+_LEGACY_RULES_FILE_ENV = "NAMING_RULES_FILE"
 
 
-def _build_rule(config: Mapping[str, object], fallback_segments: Iterable[str]) -> NamingRule:
-    segments = tuple(config.get("segments") or fallback_segments)
-    max_length = int(config.get("max_length", 80))
-    require_prefix = bool(config.get("require_sanmar_prefix", False))
-    display_fields = _build_display_fields(config.get("display"))
-    return NamingRule(
-        segments=segments,
-        max_length=max_length,
-        require_sanmar_prefix=require_prefix,
-        display_fields=display_fields,
-        validators=(),
-        name_template=str(config.get("name_template")) if config.get("name_template") else None,
-        summary_template=str(config.get("summary_template")) if config.get("summary_template") else None,
-    )
+def _resolve_rules_path() -> Path:
+    override = os.environ.get(_RULES_PATH_ENV) or os.environ.get(_LEGACY_RULES_FILE_ENV)
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parents[1] / "rules"
 
 
-DEFAULT_RULE_CONFIG: Dict[str, object] = {
-    "segments": [
-        "slug",
-        "system_short",
-        "domain",
-        "subdomain",
-        "environment",
-        "region",
-        "index",
-    ],
-    "max_length": 80,
-    "require_sanmar_prefix": False,
-    "display": [
-        {"key": "name", "label": "Resource Name", "optional": False},
-        {"key": "resourceType", "label": "Resource Type", "optional": False},
-        {"key": "slug", "label": "Slug", "optional": False},
-        {"key": "region", "label": "Region", "optional": False},
-        {"key": "environment", "label": "Environment", "optional": False},
-        {"key": "project", "label": "Project"},
-        {"key": "purpose", "label": "Purpose"},
-        {"key": "system", "label": "System"},
-        {"key": "index", "label": "Index"},
-    ],
-}
+def _load_default_provider() -> NamingRuleProvider:
+    from providers.json_rules import JsonRuleProvider  # Local import to avoid circular dependency
 
-RESOURCE_RULE_CONFIG: Dict[str, Dict[str, object]] = {
-    "storage_account": {
-        "segments": DEFAULT_RULE_CONFIG["segments"],
-        "max_length": 24,
-        "require_sanmar_prefix": True,
-        "display": [
-            {"key": "name", "label": "Storage Account Name", "optional": False},
-            {"key": "resourceType", "label": "Resource Type", "optional": False},
-            {"key": "slug", "label": "Slug", "optional": False},
-            {"key": "environment", "label": "Environment", "optional": False},
-            {"key": "region", "label": "Region", "optional": False},
-            {"key": "project", "label": "Project"},
-            {"key": "purpose", "label": "Purpose"},
-            {"key": "system", "label": "System"},
-            {"key": "index", "label": "Index"},
-        ],
-    }
-}
+    return JsonRuleProvider(rules_path=_resolve_rules_path())
 
-DEFAULT_DISPLAY_CONFIG: Sequence[Mapping[str, object]] = tuple(DEFAULT_RULE_CONFIG["display"])
+
+def _sync_shared_state(provider: NamingRuleProvider) -> None:
+    global DEFAULT_RULE, RESOURCE_RULES
+
+    DEFAULT_RULE = provider.get_rule("default")
+    resource_rules: Dict[str, NamingRule] = {}
+    if hasattr(provider, "list_resource_types"):
+        for resource_type in provider.list_resource_types():
+            normalised = str(resource_type).lower()
+            if normalised in {"default", "__default__"}:
+                continue
+            resource_rules[normalised] = provider.get_rule(normalised)
+    RESOURCE_RULES = resource_rules
 
 
 _TEMPLATE_FORMATTER = Formatter()
@@ -268,14 +223,9 @@ def _build_segment_mappings(rule: NamingRule) -> List[Dict[str, object]]:
     return mappings
 
 
-DEFAULT_RULE = _build_rule(DEFAULT_RULE_CONFIG, DEFAULT_RULE_CONFIG["segments"])
-RESOURCE_RULES = {
-    key: _build_rule(config, DEFAULT_RULE.segments)
-    for key, config in RESOURCE_RULE_CONFIG.items()
-}
-
-
-_provider: NamingRuleProvider = DictionaryRuleProvider(DEFAULT_RULE, RESOURCE_RULES)
+_provider: NamingRuleProvider = _load_default_provider()
+DEFAULT_RULE: NamingRule
+RESOURCE_RULES: Dict[str, NamingRule]
 
 
 def _load_provider_from_env() -> Optional[NamingRuleProvider]:
@@ -303,12 +253,15 @@ _env_provider = _load_provider_from_env()
 if _env_provider:
     _provider = _env_provider
 
+_sync_shared_state(_provider)
+
 
 def set_rule_provider(provider: NamingRuleProvider) -> None:
     """Override the active naming rule provider at runtime."""
 
     global _provider
     _provider = provider
+    _sync_shared_state(_provider)
 
 
 def get_rule_provider() -> NamingRuleProvider:
