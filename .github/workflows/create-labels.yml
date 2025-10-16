@@ -1,0 +1,14 @@
+name: Create Labels
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create labels
+        uses: actions-ecosystem/action-create-labels@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labels.yml

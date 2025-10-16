@@ -1,0 +1,31 @@
+labels:
+  - name: bug
+    color: d73a4a
+    description: Something isn't working
+  - name: enhancement
+    color: a2eeef
+    description: New feature or request
+  - name: docs
+    color: 0075ca
+    description: Documentation only changes
+  - name: tests
+    color: c2e0c6
+    description: Add or update tests
+  - name: ci
+    color: 1d76db
+    description: Continuous integration
+  - name: dependencies
+    color: 0e8a16
+    description: Dependency updates
+  - name: security
+    color: b60205
+    description: Security-related
+  - name: question
+    color: d876e3
+    description: Further information is requested
+  - name: wontfix
+    color: ffffff
+    description: This will not be worked on
+  - name: good first issue
+    color: 7057ff
+    description: Good for newcomers
