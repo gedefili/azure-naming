@@ -1,5 +1,8 @@
 # 🧭 Azure Naming Function
 
+[![CI](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml/badge.svg)](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml)
+[![Release](https://github.com/gedefili/azure-naming/actions/workflows/release.yml/badge.svg)](https://github.com/gedefili/azure-naming/releases)
+
 This project provides a secure, auditable, and standards-compliant Azure naming service. It uses Azure Functions, Table Storage, and Entra ID for identity and access control.
 
 <!-- Architecture Diagram -->
@@ -100,3 +103,15 @@ Both naming rules and slug resolution use a **pluggable provider architecture**.
 | Slugs           | `adapters.slug.TableSlugProvider` via `core.slug_service` | Set `SLUG_PROVIDER` to a `module.attr` that returns one or more providers implementing `get_slug(resource_type)` or call `core.slug_service.set_slug_providers([...])`. |
 
 Providers are evaluated in order until one succeeds. This makes it straightforward to layer in custom data sources (for example, in-memory caches, REST lookups, or alternative storage) while keeping the rest of the system unchanged.
+
+---
+
+## Ownership & License
+
+This repository is maintained by `gedefili` in partnership with Sanmar. The
+code is owned by Sanmar and is published under the MIT License. Contributors
+working on behalf of Sanmar should ensure their employer's contribution policy
+permits the assignment of copyright under the MIT terms.
+
+By default, this project accepts contributions under the MIT license; see
+`LICENSE` for the full text.
