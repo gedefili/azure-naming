@@ -1,3 +1,38 @@
+# Contributing
+
+Thank you for considering contributing to this project! We welcome issues, bug
+reports, and pull requests. Please follow these guidelines to make the process
+smooth for maintainers and contributors.
+
+## Getting started
+
+- Fork the repository and create a topic branch from `main`.
+- Run the test suite locally:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pytest
+```
+
+## Pull Request process
+
+- Keep PRs small and focused. One feature or fix per PR.
+- Write tests for bug fixes and new features.
+- Update `CHANGELOG.md` with a short note for the release (maintainers will
+  consolidate when releasing).
+- Use semantic commit messages (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
+
+## Coding guidelines
+
+- Follow existing code style. The project uses standard Python formatting and
+  type hints where appropriate.
+- Add unit tests for new behavior and ensure the full test suite passes.
+
+## Support
+
+If you need help, open an issue describing the problem and include reproducible
+steps and error output.
 # 🤝 Contributing to Azure Naming Function
 
 Thank you for considering contributing to this project! This guide outlines the process and standards for contributions.
