@@ -68,11 +68,11 @@ These endpoints respect the same RBAC requirements as other read APIs (`reader` 
 
 ---
 
-## 📤 Claim or Generate a Name
+## 📤 Claim a Name
 
 **POST** `/api/claim`
 
-You can also call **POST** `/api/generate` if you prefer to keep the claim-specific route separate. Both endpoints validate RBAC, generate a compliant name, persist it, and return the same payload.
+This endpoint validates RBAC, generates a compliant name, persists it, and returns the full claim payload.
 
 ### Body:
 
@@ -212,7 +212,26 @@ Returns the claim/release history for a specific name.
 
 ---
 
-## 🔄 Manual Slug Sync
+## � Lookup a Slug
+
+**GET** `/api/slug?resource_type=storage_account`
+
+Returns the short slug the naming service will apply when generating names for the specified resource type. The query parameter accepts either underscore or space separated identifiers.
+
+### Returns (`200 OK`):
+
+```json
+{
+  "resourceType": "storage_account",
+  "slug": "st"
+}
+```
+
+If the resource type is unknown, the endpoint responds with `404 Not Found`.
+
+---
+
+## �🔄 Manual Slug Sync
 
 **POST** `/api/slug_sync`
 
@@ -227,7 +246,7 @@ Manually refreshes slug definitions from the GitHub `defined_specs` file and upd
 ```
 
 > ℹ️ The `summary` field is populated when the active naming rule defines a summary template; otherwise it is `null`.
-> 📌 This example reflects the built-in `USStrictRuleProvider` (`providers.us_rules`) layered on top of the default rule set. If you register a custom naming rule provider the returned fields may differ.
+> 📌 This example reflects the optional `rules/us_strict.json` overlay layered on top of the default rule set. If you register a custom naming rule provider or supply additional overlays the returned fields may differ.
 
 This endpoint is RBAC-protected and requires the `contributor` role or higher. The sync process populates `ResourceType` (canonical underscore format) and `FullName` (human-readable with spaces) so that the pluggable slug providers can resolve either input style.
 

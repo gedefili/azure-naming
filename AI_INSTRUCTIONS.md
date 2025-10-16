@@ -8,7 +8,7 @@ This project relies on Azure Function apps backed by the shared `core/` domain p
 - If you need to mark a file or code path as non-critical for coverage, include an inline `# pragma: no cover` annotation together with a short justification explaining why integration testing is required.
 
 ## Code organisation
-- The Azure Function entry points under directories such as `generate_names`, `claim_name`, and `release_name` are intentionally lightweight and delegate to the shared services. New business logic should live under `core/` (domain logic) or `adapters/` (integration points) so that it remains testable.
+- The Azure Function entry points under directories such as `claim_name`, `release_name`, and `slug_sync` are intentionally lightweight and delegate to the shared services. New business logic should live under `core/` (domain logic) or `adapters/` (integration points) so that it remains testable.
 - Prefer extending the existing unit tests in `tests/` to cover new behaviour. The custom coverage harness is based on Python's `trace` module, so dynamically generated code may require explicit tests to be counted.
 
 ## Dependencies

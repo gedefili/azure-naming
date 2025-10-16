@@ -24,3 +24,5 @@ venv/
 # Local coverage artifacts
 .coverage
 htmlcov/
+
+.python_packages

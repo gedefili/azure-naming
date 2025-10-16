@@ -65,24 +65,6 @@ def claim_name(req: func.HttpRequest) -> func.HttpResponse:
     return _handle_claim_request(req, log_prefix="claim_name")
 
 
-@app.function_name(name="generate_name")
-@app.route(route="generate", methods=[func.HttpMethod.POST])
-@openapi_doc(
-    summary="Legacy alias for claim endpoint",
-    description="Backwards compatible alias that behaves identically to /claim.",
-    tags=["Names"],
-    request_model=NameClaimRequest,
-    response_model=NameClaimResponse,
-    operation_id="generateName",
-    route="/generate",
-    method="post",
-)
-def generate_name(req: func.HttpRequest) -> func.HttpResponse:
-    """Alias route for backwards compatibility with legacy clients."""
-
-    return _handle_claim_request(req, log_prefix="generate_names")
-
-
 @app.function_name(name="release_name")
 @app.route(route="release", methods=[func.HttpMethod.POST])
 @openapi_doc(

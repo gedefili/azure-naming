@@ -3,6 +3,8 @@ import random
 import string
 import sys
 
+import json
+
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -11,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 from core import name_service, naming_rules
 from core.user_settings import InMemorySettingsRepository, UserSettingsService
-from providers.us_rules import USStrictRuleProvider
+from providers.json_rules import JsonRuleProvider
 
 
 def test_generate_and_claim_name_success(monkeypatch):
@@ -340,8 +342,47 @@ def test_to_dict_includes_display(monkeypatch):
     assert any(entry["key"] == "name" for entry in body["display"])
 
 
-def test_us_provider_enforces_region(monkeypatch):
-    provider = USStrictRuleProvider()
+def _build_us_strict_provider(tmp_path):
+    rules_dir = tmp_path / "rules"
+    rules_dir.mkdir()
+
+    base_path = ROOT / "rules" / "base.json"
+    rules_dir.joinpath("base.json").write_text(base_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    overlay = {
+        "metadata": {"name": "us_strict", "priority": 100},
+        "resources": {
+            "storage_account": {
+                "segments": [
+                    "slug",
+                    "system_short",
+                    "subdomain",
+                    "environment",
+                    "region",
+                    "index",
+                ],
+                "require_sanmar_prefix": True,
+                "name_template": "{region}-{environment}-{slug}-{system_short}{index_segment}",
+                "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
+                "validators": {
+                    "allowed_values": {
+                        "region": ["wus", "wus2", "eus", "eus1"],
+                        "environment": ["prd", "stg", "tst", "uat", "alt"],
+                    },
+                    "require_any": {
+                        "system": ["system", "system_short"],
+                        "subsystem": ["purpose", "subdomain"],
+                    },
+                }
+            }
+        },
+    }
+    rules_dir.joinpath("us_strict.json").write_text(json.dumps(overlay), encoding="utf-8")
+    return JsonRuleProvider(rules_path=rules_dir)
+
+
+def test_us_provider_enforces_region(monkeypatch, tmp_path):
+    provider = _build_us_strict_provider(tmp_path)
     original_provider = naming_rules.get_rule_provider()
     naming_rules.set_rule_provider(provider)
 
@@ -368,8 +409,8 @@ def test_us_provider_enforces_region(monkeypatch):
         naming_rules.set_rule_provider(original_provider)
 
 
-def test_us_provider_accepts_valid_payload(monkeypatch):
-    provider = USStrictRuleProvider()
+def test_us_provider_accepts_valid_payload(monkeypatch, tmp_path):
+    provider = _build_us_strict_provider(tmp_path)
     original_provider = naming_rules.get_rule_provider()
     naming_rules.set_rule_provider(provider)
 

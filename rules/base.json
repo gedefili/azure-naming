@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "Base naming rules",
+    "priority": 0,
+    "description": "Default SanMar naming rule set."
+  },
+  "default": {
+    "segments": [
+      "slug",
+      "system_short",
+      "domain",
+      "subdomain",
+      "environment",
+      "region",
+      "index"
+    ],
+    "max_length": 80,
+    "require_sanmar_prefix": false,
+    "display": [
+      { "key": "name", "label": "Resource Name", "optional": false },
+      { "key": "resourceType", "label": "Resource Type", "optional": false },
+      { "key": "slug", "label": "Slug", "optional": false },
+      { "key": "region", "label": "Region", "optional": false },
+      { "key": "environment", "label": "Environment", "optional": false },
+      { "key": "project", "label": "Project" },
+      { "key": "purpose", "label": "Purpose" },
+      { "key": "system", "label": "System" },
+      { "key": "index", "label": "Index" }
+    ]
+  },
+  "resources": {
+    "storage_account": {
+      "segments": [
+        "slug",
+        "system_short",
+        "domain",
+        "subdomain",
+        "environment",
+        "region",
+        "index"
+      ],
+      "max_length": 24,
+      "require_sanmar_prefix": true,
+      "display": [
+        { "key": "name", "label": "Storage Account Name", "optional": false },
+        { "key": "resourceType", "label": "Resource Type", "optional": false },
+        { "key": "slug", "label": "Slug", "optional": false },
+        { "key": "environment", "label": "Environment", "optional": false },
+        { "key": "region", "label": "Region", "optional": false },
+        { "key": "project", "label": "Project" },
+        { "key": "purpose", "label": "Purpose" },
+        { "key": "system", "label": "System" },
+        { "key": "index", "label": "Index" }
+      ]
+    }
+  }
+}
