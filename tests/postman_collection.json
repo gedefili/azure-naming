@@ -1,7 +1,8 @@
 {
   "info": {
-    "_postman_id": "azure-naming-collection",
-    "name": "Azure Naming API",
+    "name": "Azure Naming API - Local",
+    "_postman_id": "00000000-0000-0000-0000-000000000000",
+    "description": "Collection to exercise slug lookup, slug sync, claim and release endpoints against a local function host.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -15,13 +16,22 @@
           "protocol": "http",
           "host": ["localhost"],
           "port": "7071",
-          "path": ["api","slug"],
-          "query": [
-            {
-              "key": "resource_type",
-              "value": "storage_account"
-            }
-          ]
+          "path": ["api", "slug"],
+          "query": [{ "key": "resource_type", "value": "storage_account" }]
+        }
+      }
+    },
+    {
+      "name": "Slug Sync (POST)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:7071/api/slug_sync",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "7071",
+          "path": ["api", "slug_sync"]
         }
       }
     },
@@ -29,29 +39,36 @@
       "name": "Claim Name",
       "request": {
         "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": { "mode": "raw", "raw": "{\n  \"resourceType\": \"storage_account\",\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"slug\": \"st\",\n  \"optional_inputs\": {}\n}" },
-        "url": { "raw": "http://localhost:7071/api/claim", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","claim"] }
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\",\n  \"resource_type\": \"storage_account\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:7071/api/claim",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "7071",
+          "path": ["api", "claim"]
+        }
       }
     },
     {
       "name": "Release Name",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Content-Type", "value": "application/json" } ],
-        "body": { "mode": "raw", "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}" },
-        "url": { "raw": "http://localhost:7071/api/release", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","release"] }
-      }
-    },
-    {
-      "name": "Trigger Slug Sync",
-      "request": {
-        "method": "POST",
-        "header": [ { "key": "Content-Type", "value": "application/json" } ],
-        "body": { "mode": "raw", "raw": "{}" },
-        "url": { "raw": "http://localhost:7071/api/slug_sync", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","slug_sync"] }
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:7071/api/release",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "7071",
+          "path": ["api", "release"]
+        }
       }
     }
   ]
