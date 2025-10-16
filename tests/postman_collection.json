@@ -1,0 +1,58 @@
+{
+  "info": {
+    "_postman_id": "azure-naming-collection",
+    "name": "Azure Naming API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Slug Lookup",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:7071/api/slug?resource_type=storage_account",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "7071",
+          "path": ["api","slug"],
+          "query": [
+            {
+              "key": "resource_type",
+              "value": "storage_account"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Claim Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"resourceType\": \"storage_account\",\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"slug\": \"st\",\n  \"optional_inputs\": {}\n}" },
+        "url": { "raw": "http://localhost:7071/api/claim", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","claim"] }
+      }
+    },
+    {
+      "name": "Release Name",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}" },
+        "url": { "raw": "http://localhost:7071/api/release", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","release"] }
+      }
+    },
+    {
+      "name": "Trigger Slug Sync",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": { "raw": "http://localhost:7071/api/slug_sync", "protocol": "http", "host": ["localhost"], "port": "7071", "path": ["api","slug_sync"] }
+      }
+    }
+  ]
+}
