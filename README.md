@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml/badge.svg)](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml)
 [![Release](https://github.com/gedefili/azure-naming/actions/workflows/release.yml/badge.svg)](https://github.com/gedefili/azure-naming/releases)
+[![Integration](https://github.com/gedefili/azure-naming/actions/workflows/integration.yml/badge.svg)](https://github.com/gedefili/azure-naming/actions/workflows/integration.yml)
 
 This project provides a secure, auditable, and standards-compliant Azure naming service. It uses Azure Functions, Table Storage, and Entra ID for identity and access control.
 
@@ -84,12 +85,25 @@ Tokens are validated server-side; no function keys are required.
 
 ## 📚 Documentation
 
-* [📘 Usage](docs/usage.md)
-* [🔐 Authentication & RBAC](docs/auth.md)
-* [🗃 Schemas, Naming Rules & Providers](docs/schema.md)
-* [🚀 Deployment Guide](docs/deployment.md) — reference only until rollout resumes
-* [🧪 Local Development, Swagger & Postman](docs/local-testing.md)
-* [💰 10-Year Cost Estimate](docs/cost-estimate.md)
+All documentation is cataloged in `docs/index.md`. Start there and jump to the guide you need:
+
+- **Getting started & API usage:** `docs/usage.md`, `docs/auth.md`
+- **Local development & testing:** `docs/local-testing.md`, `docs/postman.md`, `docs/token_workflow.md`
+- **Architecture & internals:** `docs/schema.md`, `docs/module-structure.md`, `docs/architecture.mmd`
+- **Operations & rollout:** `docs/deployment.md`, `docs/cost-estimate.md`, `RELEASE.md`
+
+The README hosts the rendered architecture diagram above; the Mermaid source lives in `docs/architecture.mmd`.
+
+---
+
+## ✅ Branch Protection
+
+Require the `Integration tests` workflow before merging to `main`:
+
+1. Navigate to **Settings → Branches**, edit (or create) the rule for `main`.
+2. Enable **Require status checks to pass before merging**.
+3. Select **Integration tests** (workflow file: `.github/workflows/integration.yml`).
+4. Save the rule so that every merge validates the end-to-end suite.
 
 ---
 
@@ -105,6 +119,54 @@ Both naming rules and slug resolution use a **pluggable provider architecture**.
 Providers are evaluated in order until one succeeds. This makes it straightforward to layer in custom data sources (for example, in-memory caches, REST lookups, or alternative storage) while keeping the rest of the system unchanged.
 
 ---
+
+## 🔐 Bearer token (local testing)
+
+Most endpoints require an Entra ID bearer token with one of the app roles (Reader, Contributor or Admin). For local testing you have several options:
+
+- Azure CLI (quick):
+
+```bash
+az account get-access-token --resource api://<AZURE_CLIENT_ID> --query accessToken -o tsv
+```
+
+- Repository helper (prints token + claims):
+
+```bash
+python tools/get_access_token.py --show-claims --client-id "$AZURE_CLIENT_ID"
+# Copy the token between the markers and export it for curl/Postman
+export ACCESS_TOKEN="<PASTE_TOKEN_HERE>"
+```
+
+Using the token with Postman / Newman / curl
+
+- Postman: set environment variable `auth_token` to the raw token value (the included collection reads `Authorization: Bearer {{auth_token}}`).
+- Newman (CLI): inject the token into the included environment file before running:
+
+```bash
+jq --arg token "$ACCESS_TOKEN" '.values |= map(if .key=="auth_token" then .value=$token else . end)' tests/postman_environment.json > /tmp/env.json
+npx newman run tests/postman_collection.json -e /tmp/env.json --insecure
+```
+
+GitHub Actions
+
+- `postman.yml` supports a `bearer_token` workflow input when you manually dispatch the workflow; the workflow is input-only and does not read repository secrets. For CI runs that need authenticated Postman requests, provide the token as the `bearer_token` input when dispatching the workflow. Avoid storing long-lived tokens in repository secrets—prefer short-lived test tokens or run tests locally with the token helper.
+
+Local integration helper
+
+Use the helper to run integration tests locally and optionally perform an authenticated smoke test.
+
+```bash
+# Run integration tests (requires .venv with dependencies installed and Azurite running)
+python3 tools/run_integration_locally.py
+
+# Run integration tests and authenticated smoke test with explicit token
+python3 tools/run_integration_locally.py --token "$ACCESS_TOKEN" --function-url "http://localhost:7071"
+
+# Or have the helper invoke the token helper (requires az login and client id)
+python3 tools/run_integration_locally.py --client-id "$AZURE_CLIENT_ID"
+```
+
 
 ## Ownership & License
 

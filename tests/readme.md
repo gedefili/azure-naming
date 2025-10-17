@@ -104,6 +104,22 @@ curl -s -X POST http://localhost:7071/api/release -H 'Content-Type: application/
 
 # Trigger slug sync (admin)
 curl -s -X POST http://localhost:7071/api/slug_sync -H 'Content-Type: application/json' -d '{}' | jq
+
+---
+
+Bearer token quick reference
+
+Most endpoints require an Entra ID bearer token. See the README section "Bearer token (local testing)" for detailed instructions, or use the helper:
+
+```bash
+# Print a token and decoded claims (copy the token between the markers)
+python tools/get_access_token.py --show-claims --client-id "$AZURE_CLIENT_ID"
+
+# Export it for curl/Postman
+export ACCESS_TOKEN="<PASTE_TOKEN_HERE>"
+# Example curl with Authorization header
+curl -H "Authorization: Bearer $ACCESS_TOKEN" "http://localhost:7071/api/slug?resource_type=storage_account" | jq
+```
 ```
 
 9) Run the full tests

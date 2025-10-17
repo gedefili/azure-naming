@@ -6,7 +6,7 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "host", "value": "http://localhost:7071" },
+    { "key": "baseUrl", "value": "http://localhost:7071" },
     { "key": "auth_token", "value": "" }
   ],
   "item": [
@@ -16,10 +16,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{host}}/api/slug?resource_type=storage_account",
-          "protocol": "http",
-          "host": ["{{host}}"],
-          "path": ["api", "slug"],
+          "raw": "{{baseUrl}}/api/slug?resource_type=storage_account",
           "query": [{ "key": "resource_type", "value": "storage_account" }]
         }
       }
@@ -30,10 +27,7 @@
         "method": "POST",
         "header": [ { "key": "Authorization", "value": "Bearer {{auth_token}}" } ],
         "url": {
-          "raw": "{{host}}/api/slug_sync",
-          "protocol": "http",
-          "host": ["{{host}}"],
-          "path": ["api", "slug_sync"]
+          "raw": "{{baseUrl}}/api/slug_sync"
         }
       }
     },
@@ -50,10 +44,7 @@
           "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\",\n  \"resource_type\": \"storage_account\"\n}"
         },
         "url": {
-          "raw": "{{host}}/api/claim",
-          "protocol": "http",
-          "host": ["{{host}}"],
-          "path": ["api", "claim"]
+          "raw": "{{baseUrl}}/api/claim"
         }
       }
     },
@@ -70,10 +61,7 @@
           "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}"
         },
         "url": {
-          "raw": "{{host}}/api/release",
-          "protocol": "http",
-          "host": ["{{host}}"],
-          "path": ["api", "release"]
+          "raw": "{{baseUrl}}/api/release"
         }
       }
     }
