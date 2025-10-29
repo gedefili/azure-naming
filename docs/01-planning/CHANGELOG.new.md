@@ -6,6 +6,15 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.5.1] - 2025-10-29
+
+### Fixed
+
+* Added missing "Slug Sync" request to `postman-local-collection.json` — this request must be run first to populate the `SlugMappings` table before claiming names
+* Enhanced Postman documentation with clear setup order, improved troubleshooting, and error diagnosis guidance
+
+---
+
 ## [1.5.0] - 2025-12-19
 
 ### Added
