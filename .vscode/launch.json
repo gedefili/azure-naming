@@ -7,14 +7,15 @@
       "request": "attach",
       "host": "localhost",
       "port": 5678,
-      "justMyCode": true,
+      "justMyCode": false,
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}",
           "remoteRoot": "."
         }
       ],
-      "preLaunchTask": "dev:start-local-stack"
+      "preLaunchTask": "dev:start-local-stack",
+      "postDebugTask": "terminate-local-stack"
     },
     {
       "name": "Attach to Python Functions",

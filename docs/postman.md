@@ -57,3 +57,9 @@ Troubleshooting
 - If slug lookup returns 404, run the `Slug Sync` request and confirm `SlugMappings` contains the expected slug.
 
 If you'd like, I can add a short README snippet that links to `docs/postman.md` from `tests/readme.md` so contributors discover it more easily.
+
+Workflow & CI notes
+
+- The included GitHub workflows (`.github/workflows/postman.yml` and `.github/workflows/integration.yml`) accept an optional workflow input named `bearer_token` when run via "Run workflow" in the Actions UI. If provided, the value will be used to populate the Postman environment's `auth_token` variable for Newman runs. These workflows are input-only and do not read repository secrets.
+
+If you need CI-run authenticated Newman requests consider either dispatching the workflow with a short-lived bearer token as the `bearer_token` input or running integration tests locally using `tools/run_integration_locally.py` with a token obtained via `tools/get_access_token.py`.
