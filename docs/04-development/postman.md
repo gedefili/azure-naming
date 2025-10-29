@@ -26,9 +26,43 @@ Configuring host and auth
 1. **Run "Slug Sync (POST)" first** — This populates the `SlugMappings` table with slug definitions for all resource types
    - This is an admin operation and must be run before claiming names
    - Without this, all "Claim Name" requests will fail with `ValueError: Slug not found`
+   - **Note:** Slug Sync fetches definitions from GitHub (`Azure/terraform-azurerm-naming` repo). If the sync reports "0 entries updated/created", check:
+     - Network connectivity (GitHub must be reachable)
+     - If offline/no internet, see [Local Development Without GitHub](#local-development-without-github) below
 2. **Then run "Slug Lookup"** — Verify the slug was synced correctly
 3. **Then run "Claim Name"** — Generate and reserve a name
 4. **Finally run "Release Name"** — Release a claimed name back to the pool
+
+### Local Development Without GitHub
+
+If you cannot reach GitHub (offline development, corporate firewall, etc.), the Slug Sync will fail with "0 entries updated/created". To work around this:
+
+1. **Option A: Use pre-seeded test data** (recommended for quick testing)
+   - Run the integration tests which pre-populate slugs:
+     ```bash
+     python3 tools/run_integration_locally.py
+     ```
+   - This adds sample slugs to `SlugMappings` table
+   - Then use Postman to test with those slugs
+
+2. **Option B: Manually seed the table** 
+   - Insert a test row directly into Azurite:
+     ```bash
+     # Use Azure Storage Explorer or run this Python snippet
+     from tools.lib import storage_config
+     from azure.data.tables import TableClient
+     
+     table = TableClient.from_connection_string(
+         storage_config.AZURITE_CONNECTION_STRING,
+         table_name="SlugMappings"
+     )
+     table.upsert_entity({
+         "PartitionKey": "slug",
+         "RowKey": "st",
+         "FullName": "storage_account"
+     })
+     ```
+   - Then use Postman with `storage_account` as the resource type
 
 Requests included
 
@@ -70,6 +104,7 @@ Quick usage notes
 Troubleshooting
 
 - **"Slug not found for resource type 'storage_account'"** — This means the `SlugMappings` table is empty. Run the "Slug Sync" request first to populate it.
+  - If Slug Sync reports "0 entries updated/created", GitHub fetch may have failed (network issue, offline, or corporate firewall). See [Local Development Without GitHub](#local-development-without-github) above.
 - **Claim Name returns 500 / Slug Lookup returns 404** — First run "Slug Sync" to ensure `SlugMappings` contains the expected slugs.
 - **Requests return connection refused** — Confirm the function host is running on port 7071 and Azurite (or your configured Table Storage) is available.
 - **Requests return 401 Unauthorized** — Confirm you have provided a valid bearer token in the `auth_token` collection variable, or disable auth in local dev mode.
