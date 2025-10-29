@@ -6,7 +6,10 @@
     "ALLOW_LOCAL_AUTH_BYPASS": "true",
     "LOCAL_BYPASS_USER_ID": "local-dev-user",
     "LOCAL_BYPASS_ROLES": "contributor,admin",
-    "SANMAR_SLUGS_CONNECTION": "UseDevelopmentStorage=true"
+    "SANMAR_SLUGS_CONNECTION": "UseDevelopmentStorage=true",
+    "AZURE_FUNCTIONS_SKIP_CERT_VERIFICATION": "1",
+    "AZUREUS_EXTENSION_BUNDLE_CHECK": "0",
+    "EXTENSION_BUNDLE_DISABLE_LATEST_VERSION_CHECK": "1"
   },
   "ConnectionStrings": {},
   "Host": {}

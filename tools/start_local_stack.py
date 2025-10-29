@@ -17,6 +17,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Sequence
@@ -65,6 +66,46 @@ class ProcessManager:
                     proc.kill()
 
 
+def _watchdog_port_binding(
+    proc: subprocess.Popen[bytes],
+    port: int,
+    timeout: float,
+) -> None:
+    """Monitor a process to ensure it binds to a port, kill it if it doesn't within timeout."""
+    deadline = time.time() + timeout
+    check_count = 0
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            logger.debug(f"Process {proc.pid} exited before binding to port {port}")
+            return
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=2):
+                logger.debug(f"Watchdog: process {proc.pid} successfully bound to port {port}")
+                return
+        except OSError:
+            pass
+        check_count += 1
+        if check_count % 20 == 0:  # Log every 20 checks (every 10 seconds)
+            elapsed = time.time() - (deadline - timeout)
+            logger.debug(f"Watchdog: still waiting for port {port}... ({elapsed:.1f}s elapsed, {timeout - elapsed:.1f}s remaining)")
+        time.sleep(0.5)
+    
+    logger.error(
+        f"Watchdog timeout: process {proc.pid} did not bind to port {port} within {timeout}s. Killing it."
+    )
+    try:
+        proc.terminate()
+        time.sleep(1)
+        if proc.poll() is None:
+            logger.warning(f"Process {proc.pid} did not respond to SIGTERM, sending SIGKILL...")
+            proc.kill()
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        logger.error(f"Process {proc.pid} did not exit after SIGKILL")
+        proc.kill()
+    raise TimeoutError(f"Process {proc.pid} failed to bind to port {port} within {timeout}s")
+
+
 def wait_for_port(host: str, port: int, timeout: float) -> None:
     logger.info(f"Waiting for {host}:{port} (timeout: {timeout}s)...")
     deadline = time.time() + timeout
@@ -90,9 +131,47 @@ def ensure_port_free(host: str, port: int) -> None:
         try:
             sock.bind((host, port))
             logger.info(f"✓ {host}:{port} is available")
+            return
         except OSError as exc:  # pragma: no cover - network state dependent
-            logger.error(f"✗ Port {host}:{port} is already in use")
-            raise RuntimeError(f"Port {host}:{port} is already in use; stop the owning process or choose another port.") from exc
+            logger.warning(f"⚠ Port {host}:{port} is already in use, attempting to free it...")
+            _kill_port_holder(port)
+            # Try again after killing
+            time.sleep(0.5)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as retry_sock:
+                retry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    retry_sock.bind((host, port))
+                    logger.info(f"✓ {host}:{port} is now available after cleanup")
+                except OSError as retry_exc:
+                    logger.error(f"✗ Failed to free port {host}:{port}")
+                    raise RuntimeError(f"Port {host}:{port} is still in use after cleanup attempt.") from retry_exc
+
+
+def _kill_port_holder(port: int) -> None:
+    """Attempt to kill process holding the given port."""
+    try:
+        if os.name == "nt":  # Windows
+            cmd = f'netstat -ano | findstr ":{port}"'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            lines = result.stdout.strip().split("\n")
+            for line in lines:
+                if line:
+                    parts = line.split()
+                    if len(parts) >= 5:
+                        pid = parts[-1]
+                        logger.debug(f"Killing PID {pid} holding port {port}")
+                        subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+        else:  # Linux/macOS
+            cmd = f"lsof -ti:{port}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            pids = result.stdout.strip().split("\n")
+            for pid in pids:
+                if pid:
+                    logger.debug(f"Killing PID {pid} holding port {port}")
+                    subprocess.run(f"kill -9 {pid}", shell=True)
+        time.sleep(0.2)
+    except Exception as e:  # pragma: no cover - best effort cleanup
+        logger.debug(f"Failed to kill port holder: {e}")
 
 
 def ensure_directory(path: Path) -> None:
@@ -183,7 +262,14 @@ def start_functions(
 
     env.setdefault("FUNCTIONS_WORKER_PROCESS_COUNT", "1")
     env.setdefault("languageWorkers__python__arguments", debug_args)
+    # Disable CDN extension bundle fetch which can hang on slow/unavailable networks
+    env.setdefault("AZUREUS_EXTENSION_BUNDLE_CHECK", "0")
+    env.setdefault("EXTENSION_BUNDLE_DISABLE_LATEST_VERSION_CHECK", "1")
+    # Set network timeouts
+    env.setdefault("HTTPS_PROXY", "")
+    env.setdefault("HTTP_PROXY", "")
     logger.debug(f"Python worker args: {debug_args}")
+    logger.debug(f"Extension bundle checks disabled to prevent CDN hangs")
 
     func_exe = shutil.which("func")
     if not func_exe:
@@ -193,7 +279,8 @@ def start_functions(
         )
 
     logger.info(f"Functions CLI: {func_exe}")
-    func_cmd: Sequence[str] = (func_exe, "start", "--verbose")
+    # Use timeout flag to speed up failure if extension bundle fetch hangs
+    func_cmd: Sequence[str] = (func_exe, "start", "--verbose", "--timeout", "30")
     logger.debug(f"Command: {' '.join(func_cmd)}")
 
     logger.info("Launching Functions host process...")
@@ -202,7 +289,16 @@ def start_functions(
     logger.info(f"Functions host process started (PID: {proc.pid})")
 
     logger.info(f"Waiting for Functions host to be ready on port {FUNCTIONS_PORT}...")
-    wait_for_port("127.0.0.1", FUNCTIONS_PORT, timeout=60)
+    
+    # Start a watchdog thread to kill the process if it hangs during startup
+    watchdog = threading.Thread(
+        target=_watchdog_port_binding,
+        args=(proc, FUNCTIONS_PORT, 40),  # 40 second timeout for port binding (matches func --timeout)
+        daemon=True,
+    )
+    watchdog.start()
+    
+    wait_for_port("127.0.0.1", FUNCTIONS_PORT, timeout=50)
 
     print(PRINT_FUNC_READY, flush=True)
 
