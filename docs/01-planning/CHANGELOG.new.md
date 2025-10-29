@@ -6,6 +6,28 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.5.2] - 2025-10-29
+
+### Fixed
+
+* **Critical:** Fixed slug lookup query filter that was preventing resource type resolution
+  - Query was looking for human-readable format (spaces) but table stores canonical format (underscores)
+  - Now correctly queries for `storage_account` instead of `storage account`
+  - Resolves "Slug not found" errors despite correct data in SlugMappings table
+* Enhanced Postman documentation with clear Azurite requirements and port-based diagnostics
+  - Emphasize that BOTH Azurite (port 10002) AND Functions host (port 7071) must be running
+  - Added specific `lsof` and `netstat` commands for debugging port binding issues
+  - Clarify that "0 entries updated/created" often indicates Azurite isn't running
+
+### Validation
+
+* ✅ End-to-end testing confirms system works:
+  - Slug Sync retrieves 86 slugs from GitHub and stores correctly
+  - Slug Lookup resolves resource types to slugs successfully
+  - Claim Name endpoint generates and reserves names correctly
+
+---
+
 ## [1.5.1] - 2025-10-29
 
 ### Fixed
