@@ -14,50 +14,22 @@ from __future__ import annotations
 
 import argparse
 import os
-import shlex
-import shutil
-import signal
 import subprocess
 import sys
-import time
-import socket
 from typing import Optional
 
-AZURITE_TABLE_PORT = 10002
-AZURITE_BLOB_PORT = 10000
-AZURITE_QUEUE_PORT = 10001
+# Support both running from workspace root and tools directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DEV_CONNECTION = (
-    "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;"
-    "AccountKey=Eby8vdM02xNOcqFe4d01+EXAMPLETESTKEY==;"
-    f"BlobEndpoint=http://127.0.0.1:{AZURITE_BLOB_PORT}/devstoreaccount1;"
-    f"QueueEndpoint=http://127.0.0.1:{AZURITE_QUEUE_PORT}/devstoreaccount1;"
-    f"TableEndpoint=http://127.0.0.1:{AZURITE_TABLE_PORT}/devstoreaccount1;"
+from tools.lib import (
+    AZURITE_BLOB_PORT,
+    AZURITE_QUEUE_PORT,
+    AZURITE_TABLE_PORT,
+    dev_storage_connection_string,
+    extract_token_from_cli_output,
+    run_command,
+    wait_for_port,
 )
-
-
-def _run(cmd: str, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
-    print(f"> {cmd}")
-    return subprocess.run(shlex.split(cmd), check=check, capture_output=capture, text=True)
-
-
-def _is_port_open(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(0.5)
-        try:
-            return s.connect_ex(("127.0.0.1", port)) == 0
-        except Exception:
-            return False
-
-
-def _wait_for_table(port: int, timeout_s: int = 30) -> bool:
-    for _ in range(timeout_s):
-        try:
-            subprocess.run(["curl", "-sS", f"http://127.0.0.1:{port}"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except subprocess.CalledProcessError:
-            time.sleep(1)
-    return False
 
 
 def _get_access_token_via_helper(client_id: Optional[str]) -> Optional[str]:
@@ -65,17 +37,11 @@ def _get_access_token_via_helper(client_id: Optional[str]) -> Optional[str]:
     if client_id:
         args.extend(["--client-id", client_id])
     try:
-        cp = subprocess.run(args, check=True, capture_output=True, text=True)
+        cp = run_command(args, check=True, capture_output=True, text=True)
     except Exception as exc:
         print(f"Failed to run token helper: {exc}")
         return None
-    out = cp.stdout
-    # Extract the token printed between the markers
-    start = out.find("=== Bearer Token ===")
-    end = out.find("=== End Token ===")
-    if start == -1 or end == -1:
-        return None
-    token = out[start:end].splitlines()[1].strip()
+    token = extract_token_from_cli_output(cp.stdout)
     return token
 
 
@@ -87,18 +53,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Ensure azurite is available by checking the table endpoint
-    if not _wait_for_table(AZURITE_TABLE_PORT, timeout_s=2):
+    try:
+        wait_for_port("127.0.0.1", AZURITE_TABLE_PORT, timeout=2)
+    except TimeoutError:
         print("Azurite does not appear to be running on the default port 10002.")
         print("Please start Azurite (or run tools/start_local_stack.py) and re-run this script.")
         return 2
 
     # Export AzureWebJobsStorage for tests
-    os.environ["AzureWebJobsStorage"] = DEV_CONNECTION
+    os.environ["AzureWebJobsStorage"] = dev_storage_connection_string()
     print("Set AzureWebJobsStorage to local Azurite endpoints")
 
     # Run the coverage wrapper
     try:
-        _run(f"{sys.executable} tools/run_tests_with_coverage.py")
+        run_command([sys.executable, "tools/run_tests_with_coverage.py"], check=True)
     except subprocess.CalledProcessError as exc:
         print("Integration tests failed (see output above)")
         return exc.returncode
