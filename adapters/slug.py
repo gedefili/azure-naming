@@ -60,16 +60,17 @@ def get_slug(resource_type: str) -> str:
     """Resolve a slug for the supplied resource_type.
 
     The function attempts to locate a matching row in the SlugMappings table
-    by either the ResourceType (canonical) or FullName (human readable). The
-    query string is intentionally simple so unit tests can assert on it.
+    by FullName (which stores the resource type name from the upstream source).
+    The query string is intentionally simple so unit tests can assert on it.
     """
 
     canonical, human = _normalise_resource_type(resource_type)
     table = get_table_client(TABLE_NAME)
 
-    # Build a simple OData filter that checks FullName or ResourceType
+    # Build a simple OData filter that checks FullName
+    # FullName is stored as the canonical name (e.g., 'storage_account')
     # Using single quotes to match how the SDK formats string constants.
-    filter_str = f"FullName eq '{human}' or ResourceType eq '{canonical}'"
+    filter_str = f"FullName eq '{canonical}'"
     entities = list(table.query_entities(filter_str))
     if not entities:
         raise ValueError(f"Slug not found for resource type '{resource_type}'")
