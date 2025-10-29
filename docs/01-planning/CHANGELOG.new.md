@@ -6,12 +6,45 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.7.0] - 2025-10-29
+
+### Fixed
+
+* **Release endpoint now uses UpdateMode enum** — Fixed Azure SDK compatibility issue
+  - Changed from string `mode="Replace"` to `UpdateMode.REPLACE` enum
+  - Resolves `ValueError: Mode type 'Replace' is not supported` error
+  - Ensures compatibility with current Azure SDK versions
+
+### Improved
+
+* **Release by name alone** — Simplified release request format
+  - Region and environment are now optional in ReleaseRequest
+  - Name field alone is sufficient to identify and release a resource
+  - Partition key still constructed from name when region/environment provided
+  - Better UX: `{ "name": "wus2prdsanmarsterp-01", "reason": "no longer needed" }`
+  - Backward compatible: region/environment still accepted if provided
+
+### Documentation
+
+* Updated release endpoint documentation to reflect optional fields
+  - Clarified that name is the unique identifier needed for release
+  - Added examples showing simplified release requests
+
+### Backward Compatibility
+
+* ✅ Fully backward compatible
+  - Existing release requests with region/environment continue to work
+  - Region/environment now optional but still accepted
+  - Same response format maintained
+
+---
+
 ## [1.6.0] - 2025-10-29
 
 ### Added
 
-* **Template variable for Sanmar prefix** — `{sanmar_prefix}` now available in `name_template` when `require_sanmar_prefix: true`
-  - Gives users complete control over where the "sanmar" identifier appears in generated names
+* **Template variable for Sammer prefix** — `{sammer_prefix}` now available in `name_template` when `require_sammer_prefix: true`
+  - Gives users complete control over where the "sammer" identifier appears in generated names
   - Can place prefix at start, end, or anywhere in the name pattern
   - Prefix automatically set to "sanmar" when rule requires it, empty string otherwise
   - Examples: `"{sanmar_prefix}-{region}-{slug}"`, `"{slug}-{sanmar_prefix}"`, etc.
