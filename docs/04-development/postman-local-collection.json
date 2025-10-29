@@ -565,9 +565,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200 or 400 (depending on partition key logic)', function() {",
-                  "    var status = pm.response.code;",
-                  "    pm.expect([200, 400]).to.include(status);",
+                  "pm.test('Status code is 200 (success)', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success message', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "    pm.expect(pm.response.json().message).to.match(/(released|successfully|success)/i);",
                   "});"
                 ]
               }
@@ -587,7 +590,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"wus2prdsttest01\",\n  \"reason\": \"Simplified release test\"\n}"
+              "raw": "{\n  \"name\": \"{{claimed_name}}\",\n  \"reason\": \"Simplified release test - using auto-saved name\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/release",

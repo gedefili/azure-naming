@@ -106,11 +106,11 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     # If not provided, attempt to extract from the name
     # Names follow pattern: {region}{environment}{prefix}{slug}... or similar
     # Common regions: wus, wus2, eus, eus1 (2-4 chars)
-    # Common environments: prd, stg, tst, uat, alt (3 chars)
+    # Common environments: prd, stg, tst, uat, alt, dev (3 chars)
     if not region or not environment:
         # Try to extract from name by trying common patterns
         possible_regions = ["wus2", "wus", "eus1", "eus"]
-        possible_envs = ["prd", "stg", "tst", "uat", "alt"]
+        possible_envs = ["prd", "stg", "tst", "uat", "alt", "dev"]
         
         for poss_region in possible_regions:
             if name.startswith(poss_region):
