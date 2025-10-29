@@ -77,7 +77,7 @@ Tokens are validated server-side; no function keys are required.
 
 > Deployment to Azure is temporarily on hold while we focus on local workflows. Treat the checklist below as future-looking reference.
 
-* Provision Azure Storage + Function App (see [deployment.md](docs/deployment.md))
+* Provision Azure Storage + Function App (see [docs/05-operations/deployment.md](docs/05-operations/deployment.md))
 * Create Tables: `ClaimedNames`, `AuditLogs`, `SlugMappings`
 * Register app in Entra, assign roles
 
@@ -85,14 +85,27 @@ Tokens are validated server-side; no function keys are required.
 
 ## 📚 Documentation
 
-All documentation is cataloged in `docs/index.md`. Start there and jump to the guide you need:
+**Complete documentation hub:** Start at **[docs/index.md](docs/index.md)** for a comprehensive index to all guides.
 
-- **Getting started & API usage:** `docs/app-registration.md`, `docs/auth.md`, `docs/usage.md`
-- **Local development & testing:** `docs/local-testing.md`, `docs/postman.md`, `docs/token_workflow.md`
-- **Architecture & internals:** `docs/schema.md`, `docs/module-structure.md`, `docs/architecture.mmd`
-- **Operations & rollout:** `docs/deployment.md`, `docs/cost-estimate.md`, `RELEASE.md`
+Quick navigation by topic:
 
-The README hosts the rendered architecture diagram above; the Mermaid source lives in `docs/architecture.mmd`.
+| Topic | Location |
+|-------|----------|
+| **Getting Started** | [docs/02-getting-started/](docs/02-getting-started/) — App registration, auth setup |
+| **API Reference** | [docs/03-api-reference/](docs/03-api-reference/) — Endpoint specs, data schemas |
+| **Local Development** | [docs/04-development/](docs/04-development/) — Setup, testing, architecture |
+| **Operations & Deployment** | [docs/05-operations/](docs/05-operations/) — Production deployment, security, cost |
+| **Planning & Contributing** | [docs/01-planning/](docs/01-planning/) — Contributing guide, changelog |
+| **Refactoring** | [docs/06-refactoring/](docs/06-refactoring/) — Code quality improvements (Phase 1 & 2 complete) |
+
+**Documentation highlights:**
+- 📖 **[API Endpoints](docs/03-api-reference/usage.md)** — Complete endpoint reference with examples
+- 🛠️ **[Local Testing](docs/04-development/local-testing.md)** — How to run the service locally
+- 🔐 **[Authentication Guide](docs/02-getting-started/auth.md)** — Understanding roles and token validation
+- 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — Azure provisioning and configuration
+- 🧩 **[Module Structure](docs/04-development/module-structure.md)** — Python package organization
+
+The architecture diagram above is rendered from [docs/04-development/architecture.mmd](docs/04-development/architecture.mmd).
 
 ---
 
