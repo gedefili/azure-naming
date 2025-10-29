@@ -132,7 +132,9 @@ def _perform_slug_sync() -> Tuple[int, str]:
         return 502, "Slug sync failed: upstream returned no data."
 
     slug_table = get_table_client(SLUG_TABLE_NAME)
+    created_count = 0
     updated_count = 0
+    existing_count = 0
 
     for slug, full_name in remote_slugs.items():
         partition_key = SLUG_PARTITION_KEY
@@ -145,6 +147,8 @@ def _perform_slug_sync() -> Tuple[int, str]:
                 entity["UpdatedAt"] = datetime.utcnow().isoformat()
                 slug_table.update_entity(entity=entity, mode="Replace")
                 updated_count += 1
+            else:
+                existing_count += 1
         except Exception:
             new_entity = {
                 "PartitionKey": partition_key,
@@ -154,9 +158,13 @@ def _perform_slug_sync() -> Tuple[int, str]:
                 "UpdatedAt": datetime.utcnow().isoformat(),
             }
             slug_table.upsert_entity(entity=new_entity, mode=UpdateMode.MERGE)
-            updated_count += 1
+            created_count += 1
 
-    message = f"Slug sync complete. {updated_count} entries updated/created."
+    total = created_count + updated_count + existing_count
+    message = (
+        f"Slug sync complete. {created_count} created, {updated_count} updated, "
+        f"{existing_count} existing ({total} total)."
+    )
     logging.info("[slug_sync] %s", message)
     return 200, message
 
