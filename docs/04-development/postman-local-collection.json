@@ -6,6 +6,29 @@
   },
   "item": [
     {
+      "name": "Slug Sync",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/slug_sync",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "slug_sync"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Claim Name",
       "request": {
         "method": "POST",
