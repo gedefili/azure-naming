@@ -8,9 +8,13 @@ Location
 
 Importing the collection
 
-1. Start your local stack and function host (see `tests/readme.md`). The function host typically listens on port 7071.
+1. **Ensure your local stack is running** (see `tests/readme.md`):
+   - Start Azurite (table storage emulator) with: `python3 tools/start_local_stack.py`
+   - Start the Azure Functions host with: `func host start` (or use the VS Code task)
+   - The function host typically listens on port 7071
+   - **Both Azurite AND Functions host must be running before importing the collection**
 2. Open Postman and choose File → Import.
-3. Pick `tests/postman_collection.json` from the repository and import it.
+3. Pick `docs/04-development/postman-local-collection.json` from the repository and import it.
 
 Configuring host and auth
 
@@ -104,9 +108,16 @@ Quick usage notes
 Troubleshooting
 
 - **"Slug not found for resource type 'storage_account'"** — This means the `SlugMappings` table is empty. Run the "Slug Sync" request first to populate it.
-  - If Slug Sync reports "0 entries updated/created", GitHub fetch may have failed (network issue, offline, or corporate firewall). See [Local Development Without GitHub](#local-development-without-github) above.
+  - If Slug Sync reports "0 entries updated/created":
+    - Check that **Azurite is running**: `ps aux | grep azurite` should show an active process
+    - If not running, start it: `python3 tools/start_local_stack.py`
+    - Then retry Slug Sync
+  - If Azurite is running but still getting 0 entries, GitHub fetch may have failed (network issue, offline, or corporate firewall). See [Local Development Without GitHub](#local-development-without-github) below.
 - **Claim Name returns 500 / Slug Lookup returns 404** — First run "Slug Sync" to ensure `SlugMappings` contains the expected slugs.
-- **Requests return connection refused** — Confirm the function host is running on port 7071 and Azurite (or your configured Table Storage) is available.
+- **Requests return connection refused** — Confirm:
+  - Azurite (table storage) is running on port 10002: `netstat -tlnp | grep 10002` or `lsof -i :10002`
+  - Functions host is running on port 7071: `lsof -i :7071`
+  - If neither is running, start local stack: `python3 tools/start_local_stack.py` and `func host start`
 - **Requests return 401 Unauthorized** — Confirm you have provided a valid bearer token in the `auth_token` collection variable, or disable auth in local dev mode.
 
 If you'd like, I can add a short README snippet that links to `docs/postman.md` from `tests/readme.md` so contributors discover it more easily.
