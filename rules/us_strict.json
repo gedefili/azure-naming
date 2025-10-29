@@ -28,7 +28,7 @@
         { "key": "system", "label": "System", "optional": false },
         { "key": "index", "label": "Index" }
       ],
-      "name_template": "{region}{environment}{sanmar_prefix}{slug}{system_short}{index_segment}",
+      "name_template": "{region}{environment}{sanmar_prefix}{slug}{system_short}{index}",
       "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
       "validators": {
         "allowed_values": {
@@ -36,8 +36,7 @@
           "environment": ["prd", "stg", "tst", "uat", "alt"]
         },
         "require_any": {
-          "system": ["system", "system_short"],
-          "subsystem": ["purpose", "subdomain"]
+          "system": ["system", "system_short"]
         }
       }
     }
