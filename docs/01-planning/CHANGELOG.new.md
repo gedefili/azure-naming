@@ -6,6 +6,32 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.6.0] - 2025-10-29
+
+### Added
+
+* **Template variable for Sanmar prefix** — `{sanmar_prefix}` now available in `name_template` when `require_sanmar_prefix: true`
+  - Gives users complete control over where the "sanmar" identifier appears in generated names
+  - Can place prefix at start, end, or anywhere in the name pattern
+  - Prefix automatically set to "sanmar" when rule requires it, empty string otherwise
+  - Examples: `"{sanmar_prefix}-{region}-{slug}"`, `"{slug}-{sanmar_prefix}"`, etc.
+
+### Documentation
+
+* Enhanced rules README with template variable reference
+  - Documented all available template variables
+  - Added concrete examples showing different prefix placements
+  - Explained expected outputs for each template pattern
+
+### Backward Compatibility
+
+* ✅ Fully backward compatible
+  - Existing rules without `{sanmar_prefix}` in template continue to work
+  - Prefix still auto-applied if needed and not already in template
+  - Default behavior unchanged
+
+---
+
 ## [1.5.3] - 2025-10-29
 
 ### Improved
