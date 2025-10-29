@@ -105,25 +105,35 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
 
     # If not provided, attempt to extract from the name
     # Names follow pattern: {region}{environment}{prefix}{slug}... or similar
-    # Try common region/env patterns to deduce partition key
-    # For now, we'll search across all partitions if region/env not provided
-    partition_key = None
-    if region and environment:
-        partition_key = f"{region}-{environment}"
+    # Common regions: wus, wus2, eus, eus1 (2-4 chars)
+    # Common environments: prd, stg, tst, uat, alt (3 chars)
+    if not region or not environment:
+        # Try to extract from name by trying common patterns
+        possible_regions = ["wus2", "wus", "eus1", "eus"]
+        possible_envs = ["prd", "stg", "tst", "uat", "alt"]
+        
+        for poss_region in possible_regions:
+            if name.startswith(poss_region):
+                remainder = name[len(poss_region):]
+                for poss_env in possible_envs:
+                    if remainder.startswith(poss_env):
+                        region = poss_region
+                        environment = poss_env
+                        break
+                if region and environment:
+                    break
+
+    if not region or not environment:
+        return func.HttpResponse(
+            "Unable to determine partition key. Please provide region and environment, or use a name that starts with region (e.g., wus2prd...).",
+            status_code=400
+        )
+
+    partition_key = f"{region}-{environment}"
 
     try:
         names_table = get_table_client(NAMES_TABLE_NAME)
-        
-        # If we have partition key, use it directly
-        if partition_key:
-            entity = names_table.get_entity(partition_key=partition_key, row_key=name)
-        else:
-            # If no partition key, we need to search - for now require region/environment
-            # In a real scenario, you might query across all partitions or require them
-            return func.HttpResponse(
-                "Unable to determine partition key. Please provide region and environment.",
-                status_code=400
-            )
+        entity = names_table.get_entity(partition_key=partition_key, row_key=name)
     except Exception:
         logging.exception("[release_name] Name not found during release.")
         return func.HttpResponse("Name not found.", status_code=404)
