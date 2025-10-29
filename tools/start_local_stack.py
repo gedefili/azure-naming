@@ -22,17 +22,26 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-# Configure logging for debugging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="[%(levelname)s] %(message)s",
-    stream=sys.stderr,
-)
-logger = logging.getLogger(__name__)
+# Support both running from workspace root and tools directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tools.lib import (
+    AZURITE_BLOB_PORT,
+    AZURITE_QUEUE_PORT,
+    AZURITE_TABLE_PORT,
+    ensure_directory,
+    kill_process_by_port,
+    setup_logging,
+    wait_for_port,
+    watchdog_port_binding,
+    ProcessManager,
+)
+
+# Configure logging for debugging
+logger = setup_logging(level=logging.DEBUG)
 
 # Ports used by the local stack
-AZURITE_PORTS = (10000, 10001, 10002)
+AZURITE_PORTS = (AZURITE_BLOB_PORT, AZURITE_QUEUE_PORT, AZURITE_TABLE_PORT)
 FUNCTIONS_PORT = 7071
 DEBUG_PORT = 5678
 DEBUG_HOST = "127.0.0.1"
@@ -42,89 +51,8 @@ PRINT_STACK_START = "__DEV_STACK_STARTING__"
 PRINT_FUNC_READY = "__FUNC_HOST_READY__"
 
 
-class ProcessManager:
-    """Thin helper to keep track of child processes and terminate them cleanly."""
-
-    def __init__(self) -> None:
-        self._children: list[subprocess.Popen[bytes]] = []
-
-    def add(self, proc: subprocess.Popen[bytes]) -> None:
-        self._children.append(proc)
-
-    def terminate_all(self) -> None:
-        for proc in reversed(self._children):
-            if proc.poll() is None:
-                try:
-                    proc.terminate()
-                except Exception:  # pragma: no cover - best effort cleanup
-                    continue
-        for proc in reversed(self._children):
-            if proc.poll() is None:
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-
-
-def _watchdog_port_binding(
-    proc: subprocess.Popen[bytes],
-    port: int,
-    timeout: float,
-) -> None:
-    """Monitor a process to ensure it binds to a port, kill it if it doesn't within timeout."""
-    deadline = time.time() + timeout
-    check_count = 0
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            logger.debug(f"Process {proc.pid} exited before binding to port {port}")
-            return
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=2):
-                logger.debug(f"Watchdog: process {proc.pid} successfully bound to port {port}")
-                return
-        except OSError:
-            pass
-        check_count += 1
-        if check_count % 20 == 0:  # Log every 20 checks (every 10 seconds)
-            elapsed = time.time() - (deadline - timeout)
-            logger.debug(f"Watchdog: still waiting for port {port}... ({elapsed:.1f}s elapsed, {timeout - elapsed:.1f}s remaining)")
-        time.sleep(0.5)
-    
-    logger.error(
-        f"Watchdog timeout: process {proc.pid} did not bind to port {port} within {timeout}s. Killing it."
-    )
-    try:
-        proc.terminate()
-        time.sleep(1)
-        if proc.poll() is None:
-            logger.warning(f"Process {proc.pid} did not respond to SIGTERM, sending SIGKILL...")
-            proc.kill()
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        logger.error(f"Process {proc.pid} did not exit after SIGKILL")
-        proc.kill()
-    raise TimeoutError(f"Process {proc.pid} failed to bind to port {port} within {timeout}s")
-
-
-def wait_for_port(host: str, port: int, timeout: float) -> None:
-    logger.info(f"Waiting for {host}:{port} (timeout: {timeout}s)...")
-    deadline = time.time() + timeout
-    attempts = 0
-    while time.time() < deadline:
-        try:
-            with socket.create_connection((host, port), timeout=2):
-                logger.info(f"✓ {host}:{port} is now reachable (after {attempts} attempts)")
-                return
-        except OSError as e:
-            attempts += 1
-            if attempts % 10 == 0:
-                logger.debug(f"  Still waiting for {host}:{port}... ({attempts} attempts)")
-            time.sleep(0.2)
-    logger.error(f"✗ Timeout waiting for {host}:{port} after {attempts} attempts")
-    raise TimeoutError(f"Timeout waiting for {host}:{port}")
-
-
 def ensure_port_free(host: str, port: int) -> None:
+    """Ensure port is free by checking and killing any existing process if needed."""
     logger.info(f"Checking if {host}:{port} is available...")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -134,7 +62,7 @@ def ensure_port_free(host: str, port: int) -> None:
             return
         except OSError as exc:  # pragma: no cover - network state dependent
             logger.warning(f"⚠ Port {host}:{port} is already in use, attempting to free it...")
-            _kill_port_holder(port)
+            kill_process_by_port(port)
             # Try again after killing
             time.sleep(0.5)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as retry_sock:
@@ -145,37 +73,6 @@ def ensure_port_free(host: str, port: int) -> None:
                 except OSError as retry_exc:
                     logger.error(f"✗ Failed to free port {host}:{port}")
                     raise RuntimeError(f"Port {host}:{port} is still in use after cleanup attempt.") from retry_exc
-
-
-def _kill_port_holder(port: int) -> None:
-    """Attempt to kill process holding the given port."""
-    try:
-        if os.name == "nt":  # Windows
-            cmd = f'netstat -ano | findstr ":{port}"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            lines = result.stdout.strip().split("\n")
-            for line in lines:
-                if line:
-                    parts = line.split()
-                    if len(parts) >= 5:
-                        pid = parts[-1]
-                        logger.debug(f"Killing PID {pid} holding port {port}")
-                        subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
-        else:  # Linux/macOS
-            cmd = f"lsof -ti:{port}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            pids = result.stdout.strip().split("\n")
-            for pid in pids:
-                if pid:
-                    logger.debug(f"Killing PID {pid} holding port {port}")
-                    subprocess.run(f"kill -9 {pid}", shell=True)
-        time.sleep(0.2)
-    except Exception as e:  # pragma: no cover - best effort cleanup
-        logger.debug(f"Failed to kill port holder: {e}")
-
-
-def ensure_directory(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
 
 
 def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | None = None) -> None:
@@ -292,7 +189,7 @@ def start_functions(
     
     # Start a watchdog thread to kill the process if it hangs during startup
     watchdog = threading.Thread(
-        target=_watchdog_port_binding,
+        target=watchdog_port_binding,
         args=(proc, FUNCTIONS_PORT, 40),  # 40 second timeout for port binding (matches func --timeout)
         daemon=True,
     )
