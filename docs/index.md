@@ -6,8 +6,9 @@ Use this page as the map to every guide, reference, and workflow in the reposito
 
 ## 🧭 Getting Started & API Usage
 
-- **[usage.md](usage.md)** — Walks through every endpoint (claim, release, audit, slug sync) with expected payloads and responses.
+- **[app-registration.md](app-registration.md)** — Step-by-step guide to register the API and optional client apps in Entra ID.
 - **[auth.md](auth.md)** — Explains Entra ID roles, token validation, and how callers gain access.
+- **[usage.md](usage.md)** — Walks through every endpoint (claim, release, audit, slug sync) with expected payloads and responses.
 - **[../README.md](../README.md)** — The main README includes the architecture diagram and high-level system overview.
 
 ---

@@ -87,7 +87,7 @@ Tokens are validated server-side; no function keys are required.
 
 All documentation is cataloged in `docs/index.md`. Start there and jump to the guide you need:
 
-- **Getting started & API usage:** `docs/usage.md`, `docs/auth.md`
+- **Getting started & API usage:** `docs/app-registration.md`, `docs/auth.md`, `docs/usage.md`
 - **Local development & testing:** `docs/local-testing.md`, `docs/postman.md`, `docs/token_workflow.md`
 - **Architecture & internals:** `docs/schema.md`, `docs/module-structure.md`, `docs/architecture.mmd`
 - **Operations & rollout:** `docs/deployment.md`, `docs/cost-estimate.md`, `RELEASE.md`

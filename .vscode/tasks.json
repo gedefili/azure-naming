@@ -54,6 +54,24 @@
         "command": "${config:azureFunctions.pythonVenv}/bin/python -m pip install -r requirements.txt"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "terminate-local-stack",
+      "type": "shell",
+      "linux": {
+        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite'"
+      },
+      "osx": {
+        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite'"
+      },
+      "windows": {
+        "command": "taskkill /F /IM python.exe /T 2>nul; taskkill /F /IM node.exe /T 2>nul; exit /b 0"
+      },
+      "isBackground": false,
+      "problemMatcher": [],
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
     }
   ]
 }
