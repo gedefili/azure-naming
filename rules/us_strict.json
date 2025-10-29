@@ -2,8 +2,8 @@
   "metadata": {
     "name": "US storage account overlay",
     "priority": 100,
-    "enabled": false,
-    "description": "Stricter validation for US-based storage accounts. Toggle `enabled` to true to activate."
+    "enabled": true,
+    "description": "Stricter validation for US-based storage accounts. Toggle `enabled` to false to deactivate."
   },
   "resources": {
     "storage_account": {
@@ -28,7 +28,7 @@
         { "key": "system", "label": "System", "optional": false },
         { "key": "index", "label": "Index" }
       ],
-      "name_template": "{region}-{environment}{sanmar_prefix}{slug}{system_short}{index_segment}",
+      "name_template": "{region}{environment}{sanmar_prefix}{slug}{system_short}{index_segment}",
       "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
       "validators": {
         "allowed_values": {
