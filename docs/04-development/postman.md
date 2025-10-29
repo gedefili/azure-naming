@@ -19,12 +19,28 @@ Configuring host and auth
   - Disable auth in the function host (local dev mode), or
   - Add an `Authorization: Bearer <token>` header to the requests in the collection.
 
+## Getting Started: Required Setup Order
+
+⚠️ **Important:** You must run requests in the correct order. Follow these steps:
+
+1. **Run "Slug Sync (POST)" first** — This populates the `SlugMappings` table with slug definitions for all resource types
+   - This is an admin operation and must be run before claiming names
+   - Without this, all "Claim Name" requests will fail with `ValueError: Slug not found`
+2. **Then run "Slug Lookup"** — Verify the slug was synced correctly
+3. **Then run "Claim Name"** — Generate and reserve a name
+4. **Finally run "Release Name"** — Release a claimed name back to the pool
+
 Requests included
 
-- Slug Lookup — GET `/api/slug?resource_type=storage_account`
-- Slug Sync — POST `/api/slug_sync` (admin operation)
-- Claim Name — POST `/api/claim` (JSON body included)
-- Release Name — POST `/api/release` (JSON body included)
+1. **Slug Sync** — POST `/api/slug_sync` ⭐ **Run this first!**
+   - Populates the `SlugMappings` table with slug definitions
+   - Admin operation; required before claiming names
+2. **Slug Lookup** — GET `/api/slug?resource_type=storage_account`
+   - Verifies the slug was synced for a given resource type
+3. **Claim Name** — POST `/api/claim` (JSON body included)
+   - Generates and reserves a name (requires slug to exist)
+4. **Release Name** — POST `/api/release` (JSON body included)
+   - Releases a previously claimed name back to the pool
 
 Quick usage notes
 
@@ -53,8 +69,10 @@ Quick usage notes
 
 Troubleshooting
 
-- If requests return 500 / connection refused, confirm the function host is running and Azurite (or the configured Table Storage) is available.
-- If slug lookup returns 404, run the `Slug Sync` request and confirm `SlugMappings` contains the expected slug.
+- **"Slug not found for resource type 'storage_account'"** — This means the `SlugMappings` table is empty. Run the "Slug Sync" request first to populate it.
+- **Claim Name returns 500 / Slug Lookup returns 404** — First run "Slug Sync" to ensure `SlugMappings` contains the expected slugs.
+- **Requests return connection refused** — Confirm the function host is running on port 7071 and Azurite (or your configured Table Storage) is available.
+- **Requests return 401 Unauthorized** — Confirm you have provided a valid bearer token in the `auth_token` collection variable, or disable auth in local dev mode.
 
 If you'd like, I can add a short README snippet that links to `docs/postman.md` from `tests/readme.md` so contributors discover it more easily.
 
