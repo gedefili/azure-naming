@@ -166,8 +166,8 @@ newman run docs/04-development/postman-local-collection.json \
 **Group 1: Slug Endpoints (6 tests)**
 1. **1.1 Slug Lookup - Valid Resource Type (storage_account)** — GET `/api/slug?resource_type=storage_account`
    - ✅ Validates that storage_account maps to "st" slug
-2. **1.2 Slug Lookup - Different Valid Type (cosmos_account)** — GET `/api/slug?resource_type=cosmos_account`
-   - ✅ Tests different resource type with dynamic slug validation
+2. **1.2 Slug Lookup - Different Valid Type (cosmos)** — GET `/api/slug?resource_type=cosmos`
+   - ✅ Tests different resource type with dynamic slug validation (cosmos → cosmos_db)
 3. **1.3 Slug Lookup - Invalid/Unknown Type** — GET `/api/slug?resource_type=unknown_resource_xyz`
    - ❌ Validates 404 error handling for unknown types
 4. **1.4 Slug Lookup - Missing Parameter** — GET `/api/slug` (no query string)
@@ -177,6 +177,27 @@ newman run docs/04-development/postman-local-collection.json \
    - ✅ Validates sync completion and shows created/updated/existing counts
 6. **1.6 Slug Sync - Without Authentication** — POST `/api/slug_sync` (no auth header)
    - ❌ Validates authentication requirement (401 or 500)
+
+### Valid Resource Types
+
+The Azure Naming API supports 86 resource types from the official [Azure Terraform naming repository](https://github.com/Azure/terraform-azurerm-naming). Common examples include:
+
+- `storage_account` → `st`
+- `cosmos` → `cosmos_db`
+- `key_vault` → `kv`
+- `function_app` → `func`
+- `application_gateway` → `agw`
+- `azure_sql_database_server` → `sql`
+
+**Error:** If you use `cosmos_account` (wrong) instead of `cosmos` (correct), you'll get:
+```
+"Slug not found for resource type 'cosmos_account'."
+```
+
+To find all supported resource types, run:
+```bash
+cd azure-naming && python3 -c "from adapters.slug_fetcher import get_all_remote_slugs; slugs = get_all_remote_slugs(); print('\n'.join(f'{k}: {v}' for k,v in sorted(slugs.items())))"
+```
 
 **Group 2: Claim Name Endpoints (7 tests)**
 1. **2.1 Claim Name - Happy Path (storage_account)** — POST `/api/claim`

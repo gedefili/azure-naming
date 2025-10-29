@@ -78,7 +78,7 @@
           }
         },
         {
-          "name": "1.2 Slug Lookup - Different Valid Type (cosmos_account)",
+          "name": "1.2 Slug Lookup - Different Valid Type (cosmos)",
           "event": [
             {
               "listen": "test",
@@ -88,10 +88,11 @@
                   "pm.test('Status code is 200', function() {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test('Response has slug for cosmos_account', function() {",
+                  "pm.test('Response has slug for cosmos', function() {",
                   "    var slug = pm.response.json().slug;",
                   "    pm.expect(slug).to.be.a('string');",
                   "    pm.expect(slug.length).to.be.greaterThan(0);",
+                  "    pm.expect(slug).to.equal('cosmos_db');",
                   "});"
                 ]
               }
@@ -101,13 +102,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/slug?resource_type=cosmos_account",
+              "raw": "{{baseUrl}}/api/slug?resource_type=cosmos",
               "host": ["{{baseUrl}}"],
               "path": ["api", "slug"],
               "query": [
                 {
                   "key": "resource_type",
-                  "value": "cosmos_account"
+                  "value": "cosmos"
                 }
               ]
             }
