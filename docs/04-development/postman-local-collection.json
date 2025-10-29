@@ -761,7 +761,7 @@
       "description": "Audit log and naming rules endpoints",
       "item": [
         {
-          "name": "4.1 Get Audit Logs - All Records",
+          "name": "4.1 Get Audit Logs - Claimed Name Details",
           "event": [
             {
               "listen": "test",
@@ -771,8 +771,15 @@
                   "pm.test('Status code is 200', function() {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test('Response is array', function() {",
-                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "pm.test('Response is an object with audit details', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('claimed_by');",
+                  "});",
+                  "pm.test('Name matches what we claimed', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.name).to.equal(pm.variables.get('claimed_name'));",
                   "});"
                 ]
               }
@@ -782,14 +789,28 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/audit",
+              "raw": "{{baseUrl}}/api/audit?region={{claimed_region}}&environment={{claimed_environment}}&name={{claimed_name}}",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "audit"]
+              "path": ["api", "audit"],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "{{claimed_region}}"
+                },
+                {
+                  "key": "environment",
+                  "value": "{{claimed_environment}}"
+                },
+                {
+                  "key": "name",
+                  "value": "{{claimed_name}}"
+                }
+              ]
             }
           }
         },
         {
-          "name": "4.2 Get Audit Logs - Filtered by Name",
+          "name": "4.2 Get Audit Logs - Query by Region & Environment",
           "event": [
             {
               "listen": "test",
@@ -799,8 +820,16 @@
                   "pm.test('Status code is 200', function() {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test('Response has results', function() {",
-                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "pm.test('Response is an object with audit history', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    pm.expect(json).to.have.property('user');",
+                  "    pm.expect(json).to.have.property('project');",
+                  "});",
+                  "pm.test('Region and environment match requested values', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.region.toLowerCase()).to.equal('{{claimed_region}}'.toLowerCase());",
+                  "    pm.expect(json.environment.toLowerCase()).to.equal('{{claimed_environment}}'.toLowerCase());",
                   "});"
                 ]
               }
@@ -810,10 +839,18 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/audit?name={{claimed_name}}",
+              "raw": "{{baseUrl}}/api/audit?region={{claimed_region}}&environment={{claimed_environment}}&name={{claimed_name}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "audit"],
               "query": [
+                {
+                  "key": "region",
+                  "value": "{{claimed_region}}"
+                },
+                {
+                  "key": "environment",
+                  "value": "{{claimed_environment}}"
+                },
                 {
                   "key": "name",
                   "value": "{{claimed_name}}"
