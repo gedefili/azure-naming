@@ -6,6 +6,44 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.7.1] - 2025-10-29
+
+### Added
+
+* **Comprehensive Postman collection with test suites** — 27 requests with full test coverage
+  - **Slug endpoints** (6 tests): Valid/invalid lookups, missing parameters, sync success/failure
+  - **Claim endpoints** (7 tests): Happy path, regional variants, missing fields, invalid JSON, auth failures, conflicts
+  - **Release endpoints** (8 tests): Happy path, simplified requests, non-existent names, missing fields, invalid JSON, auth failures, unauthorized users, already released
+  - **Audit & Rules endpoints** (5 tests): List all/filtered, rule descriptions, error cases
+  - Each request includes Postman test scripts with automatic assertions
+  - Environment variables with auto-population for dependent tests
+  - Full documentation of prerequisites and setup
+
+### Improved
+
+* Postman collection now useful for automated testing
+  - Run entire collection in Postman or via Newman CLI
+  - Assertions validate status codes, response structure, and error messages
+  - Tests cover both happy path and error scenarios
+  - Multiple edge cases tested per endpoint
+
+### Documentation
+
+* Added comprehensive test scenarios to Postman collection
+  - Each test documented with expected behavior
+  - Clear separation of concerns: 4 endpoint groups
+  - Automatic population of variables between tests
+  - Prerequisites clearly stated in collection description
+
+### Backward Compatibility
+
+* ✅ Fully backward compatible
+  - All existing requests from previous collection still work
+  - Format: Postman v2.1.0 (compatible with web and desktop versions)
+  - Environment variables optional - can be manually provided
+
+---
+
 ## [1.7.0] - 2025-10-29
 
 ### Fixed
