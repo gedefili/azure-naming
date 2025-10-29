@@ -297,9 +297,15 @@
                   "    pm.expect(name).to.equal(name.toLowerCase());",
                   "});",
                   "pm.test('Save claimed name for release test', function() {",
-                  "    pm.environment.set('claimed_name', pm.response.json().name);",
-                  "    pm.environment.set('claimed_region', pm.response.json().region);",
-                  "    pm.environment.set('claimed_environment', pm.response.json().environment);",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.name) {",
+                  "        pm.environment.set('claimed_name', json.name);",
+                  "        pm.environment.set('claimed_region', json.region);",
+                  "        pm.environment.set('claimed_environment', json.environment);",
+                  "        pm.expect(json.name).to.be.a('string');",
+                  "    } else {",
+                  "        pm.expect.fail('Response missing name field or is not a valid JSON object');",
+                  "    }",
                   "});"
                 ]
               }
@@ -344,9 +350,15 @@
                   "    pm.expect(name).to.include('eus');",
                   "});",
                   "pm.test('Save claimed name for release test', function() {",
-                  "    pm.environment.set('claimed_name_2', pm.response.json().name);",
-                  "    pm.environment.set('claimed_region_2', pm.response.json().region);",
-                  "    pm.environment.set('claimed_environment_2', pm.response.json().environment);",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.name) {",
+                  "        pm.environment.set('claimed_name_2', json.name);",
+                  "        pm.environment.set('claimed_region_2', json.region);",
+                  "        pm.environment.set('claimed_environment_2', json.environment);",
+                  "        pm.expect(json.name).to.be.a('string');",
+                  "    } else {",
+                  "        pm.expect.fail('Response missing name field or is not a valid JSON object');",
+                  "    }",
                   "});"
                 ]
               }
