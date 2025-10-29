@@ -10,50 +10,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
-from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any
 
-import jwt
+# Support both running from workspace root and tools directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
-def _run_az_command(args: list[str]) -> Dict[str, Any]:
-    try:
-        completed = subprocess.run(
-            ["az", *args, "-o", "json"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as exc:  # pragma: no cover - environment specific
-        raise RuntimeError("Azure CLI (az) is not installed or not on PATH.") from exc
-    except subprocess.CalledProcessError as exc:  # pragma: no cover - runtime dependent
-        raise RuntimeError(exc.stderr.strip() or exc.stdout.strip() or str(exc)) from exc
-
-    try:
-        return json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("Failed to parse Azure CLI output as JSON.") from exc
-
-
-def _decode_claims(token: str) -> Dict[str, Any]:
-    header, payload, _ = token.split(".")
-    decoded = jwt.api_jws.base64url_decode(payload.encode())
-    return json.loads(decoded)
-
-
-def _format_expiry(timestamp: str | None) -> str:
-    if not timestamp:
-        return "unknown"
-    try:
-        # Azure CLI returns ISO 8601 without timezone, interpret as UTC
-        dt = datetime.fromisoformat(timestamp)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone().isoformat()
-    except ValueError:
-        return timestamp
+from tools.lib import decode_jwt_claims, extract_token_from_cli_output, format_expiry_timestamp, run_az_command
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -99,12 +62,12 @@ def main(argv: list[str] | None = None) -> int:
     elif resource:
         az_args.extend(["--resource", resource])
 
-    token_info = _run_az_command(az_args)
+    token_info = run_az_command(az_args)
     token = token_info.get("accessToken")
     if not token:
         raise RuntimeError("Azure CLI output did not include an accessToken field.")
 
-    expires = _format_expiry(token_info.get("expiresOn") or token_info.get("expiresOn"))
+    expires = format_expiry_timestamp(token_info.get("expiresOn") or token_info.get("expiresOn"))
 
     print("\n=== Bearer Token ===")
     print(token)
@@ -114,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"User:   {token_info.get('userId') or token_info.get('user')}")
 
     if args.show_claims:
-        claims = _decode_claims(token)
+        claims = decode_jwt_claims(token)
         wanted_keys = ("aud", "roles", "scp", "oid", "tid", "appid", "upn", "exp")
         filtered = {k: claims.get(k) for k in wanted_keys if k in claims}
         print("\nClaims snippet:")
