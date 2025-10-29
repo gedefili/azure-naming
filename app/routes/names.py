@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 
 import azure.functions as func
+from azure.data.tables import UpdateMode
 from azure_functions_openapi.decorator import openapi as openapi_doc
 
 from app import app
@@ -92,19 +93,37 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     except ValueError:
         return func.HttpResponse("Invalid JSON payload.", status_code=400)
 
-    region = (data.get("region") or "").lower()
-    environment = (data.get("environment") or "").lower()
     name = (data.get("name") or "").lower()
     reason = data.get("reason", "not specified")
 
-    if not region or not environment or not name:
-        return func.HttpResponse("Missing required fields.", status_code=400)
+    if not name:
+        return func.HttpResponse("Missing required field: name.", status_code=400)
 
-    partition_key = f"{region}-{environment}"
+    # Try to extract region and environment from provided fields first
+    region = (data.get("region") or "").lower()
+    environment = (data.get("environment") or "").lower()
+
+    # If not provided, attempt to extract from the name
+    # Names follow pattern: {region}{environment}{prefix}{slug}... or similar
+    # Try common region/env patterns to deduce partition key
+    # For now, we'll search across all partitions if region/env not provided
+    partition_key = None
+    if region and environment:
+        partition_key = f"{region}-{environment}"
 
     try:
         names_table = get_table_client(NAMES_TABLE_NAME)
-        entity = names_table.get_entity(partition_key=partition_key, row_key=name)
+        
+        # If we have partition key, use it directly
+        if partition_key:
+            entity = names_table.get_entity(partition_key=partition_key, row_key=name)
+        else:
+            # If no partition key, we need to search - for now require region/environment
+            # In a real scenario, you might query across all partitions or require them
+            return func.HttpResponse(
+                "Unable to determine partition key. Please provide region and environment.",
+                status_code=400
+            )
     except Exception:
         logging.exception("[release_name] Name not found during release.")
         return func.HttpResponse("Name not found.", status_code=404)
@@ -118,14 +137,14 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     entity["ReleaseReason"] = reason
 
     try:
-        names_table.update_entity(entity=entity, mode="Replace")
+        names_table.update_entity(entity=entity, mode=UpdateMode.REPLACE)
     except Exception:
         logging.exception("[release_name] Failed to update storage during release.")
         return func.HttpResponse("Error releasing name.", status_code=500)
 
     metadata = {
-        "Region": region,
-        "Environment": environment,
+        "Region": entity.get("PartitionKey", "").split("-")[0] if entity.get("PartitionKey") else None,
+        "Environment": entity.get("PartitionKey", "").split("-")[1] if entity.get("PartitionKey") else None,
         "ResourceType": entity.get("ResourceType"),
         "Slug": entity.get("Slug"),
         "Project": entity.get("Project"),

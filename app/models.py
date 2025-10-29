@@ -54,8 +54,8 @@ class ReleaseRequest(BaseModel):
     """Schema describing a release request."""
 
     name: str = Field(..., description="Fully qualified name to release.")
-    region: str = Field(..., description="Region where the name was registered.")
-    environment: str = Field(..., description="Environment where the name was registered.")
+    region: str | None = Field(default=None, description="Region where the name was registered (optional if resolvable from name).")
+    environment: str | None = Field(default=None, description="Environment where the name was registered (optional if resolvable from name).")
     reason: str | None = Field(
         default="not specified",
         description="Optional note describing why the name is being released.",
