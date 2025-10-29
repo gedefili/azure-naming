@@ -6,6 +6,19 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.5.3] - 2025-10-29
+
+### Improved
+
+* Enhanced slug sync output message to show detailed counts:
+  - Shows created, updated, and existing entry counts separately
+  - Total count now displayed for clarity
+  - Example: `"86 created, 0 updated, 0 existing (86 total)"` on first sync
+  - Example: `"0 created, 0 updated, 86 existing (86 total)"` on subsequent syncs
+  - Helps users understand why they see "0" on re-runs (data is already synced)
+
+---
+
 ## [1.5.2] - 2025-10-29
 
 ### Fixed
