@@ -156,6 +156,8 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     system_value = normalized_payload.get("system") or normalized_payload.get("system_short")
     index_value = normalized_payload.get("index")
 
+    # Build entity metadata from all incoming fields
+    # Include everything that was sent in the request, normalized to lowercase strings
     entity_metadata = {
         "Slug": slug,
         "Project": str(project_value).lower() if project_value else None,
@@ -167,6 +169,19 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     }
     # Remove empty metadata values
     entity_metadata = {k: v for k, v in entity_metadata.items() if v}
+    
+    # Add any additional custom fields from the normalized payload
+    # (excluding core naming fields and internal fields)
+    core_fields = {"resource_type", "region", "environment", "project", "domain", 
+                   "purpose", "subdomain", "system", "system_short", "subsystem", "index", "sessionId", "session_id"}
+    skip_fields = {"sessionId", "session_id"}
+    for key, value in normalized_payload.items():
+        if key not in core_fields and key not in skip_fields and value is not None:
+            # Normalize key names and values
+            entity_key = key[0].upper() + key[1:] if key else key
+            entity_value = str(value).lower() if isinstance(value, str) else value
+            if entity_key not in entity_metadata:
+                entity_metadata[entity_key] = entity_value
 
     claim_name(
         region=region,

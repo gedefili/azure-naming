@@ -152,9 +152,21 @@ def audit_name(req: func.HttpRequest) -> func.HttpResponse:
         "slug": entity.get("Slug"),
         "project": entity.get("Project"),
         "purpose": entity.get("Purpose"),
+        "subsystem": entity.get("Subsystem"),
         "system": entity.get("System"),
         "index": entity.get("Index"),
     }
+    
+    # Include any additional custom metadata that was stored
+    # Exclude system fields and standard naming fields already in audit_info
+    system_fields = {"PartitionKey", "RowKey", "Timestamp", "odata.metadata", "odata.type", "etag"}
+    standard_fields = {"ResourceType", "InUse", "ClaimedBy", "ClaimedAt", "ReleasedBy", "ReleasedAt", 
+                       "ReleaseReason", "Slug", "Project", "Purpose", "Subsystem", "System", "Index", "RequestedBy"}
+    for key, value in entity.items():
+        if key not in system_fields and key not in standard_fields and value is not None:
+            # Convert key to snake_case for consistency in JSON response
+            snake_case_key = ''.join(['_' + c.lower() if c.isupper() else c for c in key]).lstrip('_')
+            audit_info[snake_case_key] = value
 
     return json_payload(audit_info)
 
