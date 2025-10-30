@@ -25,6 +25,13 @@ from typing import Sequence
 # Support both running from workspace root and tools directory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+try:
+    from azure.data.tables import TableServiceClient
+    from azure.core.exceptions import ResourceNotFoundError
+    AZURE_TABLES_AVAILABLE = True
+except ImportError:
+    AZURE_TABLES_AVAILABLE = False
+
 from tools.lib import (
     AZURITE_BLOB_PORT,
     AZURITE_QUEUE_PORT,
@@ -49,6 +56,48 @@ DEBUG_HOST = "127.0.0.1"
 # Marker strings consumed by VS Code background problem matchers
 PRINT_STACK_START = "__DEV_STACK_STARTING__"
 PRINT_FUNC_READY = "__FUNC_HOST_READY__"
+
+
+def reset_azurite_tables() -> None:
+    """Reset Azurite storage tables to clean state for testing.
+    
+    Deletes and recreates:
+    - ClaimedNames: Resource name claims
+    - AuditLogs: Audit trail  
+    - SlugMappings: Resource type mappings
+    """
+    if not AZURE_TABLES_AVAILABLE:
+        logger.warning("Azure Tables client not available, skipping Azurite reset")
+        return
+    
+    AZURITE_CONNECTION = "UseDevelopmentStorage=true"
+    TABLE_NAMES = ["ClaimedNames", "AuditLogs", "SlugMappings"]
+    
+    try:
+        logger.info("Resetting Azurite tables...")
+        table_service = TableServiceClient.from_connection_string(AZURITE_CONNECTION)
+        
+        for table_name in TABLE_NAMES:
+            try:
+                logger.info(f"  Deleting table: {table_name}...")
+                table_service.delete_table(table_name)
+                logger.debug(f"  ✓ Deleted {table_name}")
+            except ResourceNotFoundError:
+                logger.debug(f"  (Table {table_name} did not exist)")
+            
+            # Recreate the table
+            logger.info(f"  Creating table: {table_name}...")
+            table_service.create_table(table_name)
+            logger.debug(f"  ✓ Created {table_name}")
+        
+        logger.info("✓ Azurite tables reset successfully")
+        logger.info("  Tables are ready for Postman testing")
+        logger.info("  Note: Run Postman test 1.5 'Slug Sync' to populate SlugMappings")
+        
+    except Exception as e:
+        logger.warning(f"Failed to reset Azurite tables: {e}")
+        logger.warning("You can manually reset using: python tools/reset_azurite.py")
+
 
 
 def ensure_port_free(host: str, port: int) -> None:
@@ -127,6 +176,11 @@ def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | Non
     for port in AZURITE_PORTS:
         wait_for_port("127.0.0.1", port, timeout=20)
     logger.info("✓ All Azurite ports are reachable")
+    
+    # Reset tables to clean state for testing
+    logger.info("Resetting Azurite tables to clean state...")
+    reset_azurite_tables()
+
 
 
 def start_functions(
