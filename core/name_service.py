@@ -37,7 +37,6 @@ class NameGenerationResult:
     region: str
     environment: str
     slug: str
-    system: str
     rule: Optional[NamingRule] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -48,12 +47,11 @@ class NameGenerationResult:
             "region": self.region,
             "environment": self.environment,
             "slug": self.slug,
-            "system": self.system,
         }
         # Include any additional metadata that was captured
         if self.metadata:
             for key, value in self.metadata.items():
-                if key not in {"Slug", "System", "RequestedBy"}:
+                if key not in {"Slug", "RequestedBy"}:
                     # Convert CamelCase keys to camelCase for JSON response
                     json_key = key[0].lower() + key[1:] if key else key
                     payload[json_key] = value
@@ -227,7 +225,6 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         region=region,
         environment=environment,
         slug=slug,
-        system=str(system_value).lower() if system_value else system_value,
         metadata=entity_metadata,
         rule=rule,
     )
