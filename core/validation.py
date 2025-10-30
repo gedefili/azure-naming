@@ -20,10 +20,20 @@ def validate_name(name: str, rule) -> None:
     max_length = _get_rule_value(rule, "max_length", 80)
 
     if len(name) > max_length:
-        raise ValueError(f"Name '{name}' exceeds maximum length of {max_length} characters.")
+        excess = len(name) - max_length
+        raise ValueError(
+            f"Name '{name}' exceeds character limit. "
+            f"Length: {len(name)} characters, Limit: {max_length} characters, "
+            f"Over by: {excess} character{'s' if excess != 1 else ''}. "
+            f"Please shorten the system, subsystem, project, or purpose fields."
+        )
 
     if not name.islower():
-        raise ValueError("Name must be lowercase.")
+        raise ValueError(f"Name '{name}' must be lowercase. Found uppercase or non-alphabetic characters.")
 
     if not re.fullmatch(r"[a-z0-9-]+", name):
-        raise ValueError("Name may only contain lowercase letters, numbers, and hyphens.")
+        invalid_chars = set(c for c in name if not re.fullmatch(r"[a-z0-9-]", c))
+        raise ValueError(
+            f"Name '{name}' contains invalid characters: {', '.join(sorted(invalid_chars))}. "
+            f"Only lowercase letters (a-z), numbers (0-9), and hyphens (-) are allowed."
+        )
