@@ -1,6 +1,24 @@
 # Resetting Azurite Storage for Local Testing
 
-This guide explains how to reset your Azurite storage to prepare for running the Postman collection locally.
+This guide explains how Azurite storage is automatically reset when you start the local development stack.
+
+## ✨ Automatic Reset (NEW!)
+
+As of the latest update, Azurite tables are **automatically reset** when you start the local stack!
+
+### Quick Start
+
+Just run the startup script:
+
+```bash
+python tools/start_local_stack.py
+```
+
+That's it! The script will:
+1. Start Azurite (Azure Storage Emulator)
+2. Start Azure Functions host
+3. **Automatically reset all tables** ✓
+4. Display ready message with endpoints
 
 ## Why Reset Azurite?
 
@@ -9,33 +27,11 @@ When testing the Azure Naming API locally with Postman, you may encounter:
 - Stale audit logs
 - Missing or corrupted slug mappings
 
-Resetting Azurite gives you a clean slate to run through the complete test suite.
+The automatic reset gives you a clean slate for each test session.
 
-## Quick Start
+## What Gets Reset?
 
-### 1. Ensure Services Are Running
-
-First, start the local development stack:
-
-```bash
-# In VS Code Terminal, run the task:
-# "dev:start-local-stack"
-
-# Or manually:
-python tools/start_local_stack.py
-```
-
-This will start:
-- Azurite (Azure Storage Emulator) on `http://127.0.0.1:10002`
-- Azure Functions host on `http://localhost:7071`
-
-### 2. Reset Azurite
-
-Run the reset script:
-
-```bash
-python tools/reset_azurite.py
-```
+Three Azure Table Storage tables are automatically deleted and recreated:
 
 Expected output:
 ```
@@ -61,26 +57,30 @@ Expected output:
 AZURITE RESET COMPLETE
 ======================================================================
 
-Storage is now ready for Postman testing:
-  - ClaimedNames: Empty (ready for claims)
-  - AuditLogs: Empty (ready for audit logs)
-  - SlugMappings: Empty (slugs loaded on sync)
+## Getting Started
 
-Next steps:
-  1. Run Postman test 1.5 'Slug Sync - Fetch and Update' to populate SlugMappings
-  2. Then run remaining tests (claim, release, audit, etc.)
+### 1. Start the Local Stack
+
+```bash
+python tools/start_local_stack.py
 ```
 
-### 3. Sync Slugs in Postman
+This will:
+- Start Azurite on `http://127.0.0.1:10002`
+- Start Azure Functions host on `http://localhost:7071`
+- **Automatically reset all tables** (ClaimedNames, AuditLogs, SlugMappings)
+- Display endpoints and next steps
 
-Before running the claim tests, you need to populate the SlugMappings table:
+### 2. Populate SlugMappings (First Time Only)
+
+Before running claim tests, you need to populate the SlugMappings table with Azure resource types:
 
 1. Open the Postman collection: `docs/04-development/postman-local-collection.json`
 2. Go to **Group 1. Slug Endpoints**
 3. Run test **1.5 Slug Sync - Fetch and Update**
-4. This will fetch all 86 resource types from GitHub and populate SlugMappings
+4. This fetches all 86 resource types from GitHub and populates SlugMappings
 
-### 4. Run Postman Tests
+### 3. Run Postman Tests
 
 Now you're ready to run the full test suite:
 
@@ -89,9 +89,21 @@ Now you're ready to run the full test suite:
 3. **Group 3**: Release name tests (3.1, 3.1b, 3.2, etc.)
 4. **Group 4**: Audit & Rules endpoints (4.1, 4.2, etc.)
 
-## Tables Created
+### 4. Reset for Another Test Run
 
-The script creates three empty Azure Table Storage tables:
+To reset storage for another test run:
+
+```bash
+# Option A: Restart the stack (resets automatically)
+python tools/start_local_stack.py
+
+# Option B: Reset without restarting
+python tools/reset_azurite.py
+```
+
+## Tables Automatically Reset
+
+The startup script deletes and recreates three Azure Table Storage tables:
 
 ### ClaimedNames
 Stores currently claimed resource names. Structure:
@@ -176,16 +188,10 @@ AZURITE_CONNECTION = "UseDevelopmentStorage=true"
 ## Full Workflow Example
 
 ```bash
-# 1. Start services
+# Terminal 1: Start local stack (auto-resets Azurite)
 python tools/start_local_stack.py
 
-# 2. Reset storage (in another terminal)
-python tools/reset_azurite.py
-
-# 3. Open Postman
-postman  # or open in browser
-
-# 4. Run tests in order:
+# Terminal 2: Open Postman and run tests in order:
 #    - 1.5 Slug Sync (to populate SlugMappings)
 #    - 2.1 Claim Name (happy path)
 #    - 2.2 Claim Name (different region)
@@ -194,8 +200,9 @@ postman  # or open in browser
 #    - 4.1 Get Audit Logs
 #    - etc.
 
-# 5. To reset again for another test run:
+# To test again with clean data:
 python tools/reset_azurite.py
+# (No need to restart the stack!)
 ```
 
 ## See Also

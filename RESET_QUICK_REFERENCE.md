@@ -1,6 +1,19 @@
 # Quick Reference: Azurite Reset
 
-## One-Command Reset
+## Automatic Reset (Recommended)
+
+Starting local stack now automatically resets Azurite! ✨
+
+```bash
+# Just run start_local_stack.py - it handles reset automatically
+python tools/start_local_stack.py
+```
+
+No separate reset command needed!
+
+## Manual Reset (Optional)
+
+If you want to reset without restarting the stack:
 
 ```bash
 # Python version (recommended)
@@ -8,11 +21,6 @@ python tools/reset_azurite.py
 
 # Bash version
 ./tools/reset_azurite.sh
-
-# Or both at once:
-python tools/start_local_stack.py &
-sleep 2
-python tools/reset_azurite.py
 ```
 
 ## What Gets Reset
@@ -26,20 +34,18 @@ python tools/reset_azurite.py
 ## Typical Workflow
 
 ```bash
-# 1. Start local stack (Azurite + Functions)
+# 1. Start local stack (Azurite + Functions + Auto-Reset)
 python tools/start_local_stack.py
 
-# 2. In another terminal, reset storage
-python tools/reset_azurite.py
-
-# 3. Open Postman and run:
+# 2. In ANOTHER terminal, open Postman and run:
 #    Group 1: 1.5 (Slug Sync) - populates SlugMappings
 #    Group 2: 2.1, 2.2 (Claim tests)
 #    Group 3: 3.1, 3.1b, 3.2... (Release tests)
 #    Group 4: 4.1, 4.2... (Audit tests)
 
-# 4. To reset again for a clean run:
+# 3. To reset again for another test run:
 python tools/reset_azurite.py
+# (No need to restart the stack)
 ```
 
 ## Troubleshooting
