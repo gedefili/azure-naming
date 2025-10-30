@@ -164,6 +164,16 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
         "Index": entity.get("Index"),
     }
     metadata = {key: value for key, value in metadata.items() if value}
+    
+    # Capture all metadata stored with the entity during claim
+    # Include any custom fields that may have been stored
+    system_fields = {"PartitionKey", "RowKey", "Timestamp", "odata.metadata", "odata.type", "etag"}
+    audit_specific = {"Region", "Environment", "ResourceType", "Slug", "Project", "Purpose", "Subsystem", "System", "Index", 
+                      "InUse", "ClaimedBy", "ClaimedAt", "ReleasedBy", "ReleasedAt", "ReleaseReason", "RequestedBy"}
+    for key, value in entity.items():
+        if key not in system_fields and key not in audit_specific and value is not None:
+            # Add any additional custom metadata that was stored
+            metadata[key] = value
 
     write_audit_log(name, user_id, "released", reason, metadata=metadata)
 

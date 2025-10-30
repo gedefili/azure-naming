@@ -177,13 +177,31 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         metadata=entity_metadata,
     )
 
-    audit_metadata = {
-        "Region": region,
-        "Environment": environment,
-        "ResourceType": resource_type,
-        "Slug": slug,
-    }
-    audit_metadata.update({k: v for k, v in entity_metadata.items() if k in {"Project", "Purpose", "Subsystem", "System", "Index"}})
+    # Build audit metadata from the entire incoming request payload
+    # This ensures all metadata sent by the client is captured in the audit trail
+    audit_metadata = {}
+    
+    # Add all incoming fields from the normalized payload (excluding internal/system fields)
+    skip_fields = {"sessionId", "session_id"}
+    for key, value in normalized_payload.items():
+        if key not in skip_fields and value is not None:
+            # Normalize key names to CamelCase for consistency
+            if key == "resource_type":
+                audit_metadata["ResourceType"] = str(value).lower()
+            elif key == "region":
+                audit_metadata["Region"] = str(value).lower()
+            elif key == "environment":
+                audit_metadata["Environment"] = str(value).lower()
+            else:
+                # For other fields, capitalize first letter
+                audit_key = key[0].upper() + key[1:] if key else key
+                audit_metadata[audit_key] = str(value).lower() if isinstance(value, str) else value
+    
+    # Always ensure core fields are present
+    audit_metadata.setdefault("ResourceType", resource_type)
+    audit_metadata.setdefault("Region", region)
+    audit_metadata.setdefault("Environment", environment)
+    audit_metadata["Slug"] = slug
 
     write_audit_log(
         name,
