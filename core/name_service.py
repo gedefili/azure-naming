@@ -37,12 +37,9 @@ class NameGenerationResult:
     region: str
     environment: str
     slug: str
-    project: Optional[str] = None
-    purpose: Optional[str] = None
-    subsystem: Optional[str] = None
-    system: Optional[str] = None
-    index: Optional[str] = None
+    system: str
     rule: Optional[NamingRule] = None
+    metadata: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         payload = {
@@ -51,17 +48,15 @@ class NameGenerationResult:
             "region": self.region,
             "environment": self.environment,
             "slug": self.slug,
+            "system": self.system,
         }
-        if self.project:
-            payload["project"] = self.project
-        if self.purpose:
-            payload["purpose"] = self.purpose
-        if self.subsystem:
-            payload["subsystem"] = self.subsystem
-        if self.system:
-            payload["system"] = self.system
-        if self.index:
-            payload["index"] = self.index
+        # Include any additional metadata that was captured
+        if self.metadata:
+            for key, value in self.metadata.items():
+                if key not in {"Slug", "System", "RequestedBy"}:
+                    # Convert CamelCase keys to camelCase for JSON response
+                    json_key = key[0].lower() + key[1:] if key else key
+                    payload[json_key] = value
         if self.rule and hasattr(self.rule, "render_display"):
             payload["display"] = self.rule.render_display(payload)
         if self.rule and hasattr(self.rule, "render_summary"):
@@ -232,10 +227,7 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         region=region,
         environment=environment,
         slug=slug,
-        project=entity_metadata.get("Project"),
-        purpose=entity_metadata.get("Purpose"),
-        subsystem=entity_metadata.get("Subsystem"),
-        system=entity_metadata.get("System"),
-        index=entity_metadata.get("Index"),
+        system=str(system_value).lower() if system_value else system_value,
+        metadata=entity_metadata,
         rule=rule,
     )

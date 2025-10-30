@@ -64,10 +64,10 @@ def test_generate_and_claim_name_success(monkeypatch):
     result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
 
     assert result.name == "sanmar-st-finance-costreports-dev-wus2-01"
-    assert result.project == "finance"
-    assert result.purpose == "costreports"
+    assert result.metadata["Project"] == "finance"
+    assert result.metadata["Purpose"] == "costreports"
     assert result.system == "erp"
-    assert result.index == "01"
+    assert result.metadata["Index"] == "01"
 
     assert captured["claim_args"]["metadata"]["Project"] == "finance"
     assert captured["audit"]["metadata"]["Region"] == "wus2"
