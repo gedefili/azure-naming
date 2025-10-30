@@ -39,6 +39,7 @@ class NameGenerationResult:
     slug: str
     project: Optional[str] = None
     purpose: Optional[str] = None
+    subsystem: Optional[str] = None
     system: Optional[str] = None
     index: Optional[str] = None
     rule: Optional[NamingRule] = None
@@ -55,6 +56,8 @@ class NameGenerationResult:
             payload["project"] = self.project
         if self.purpose:
             payload["purpose"] = self.purpose
+        if self.subsystem:
+            payload["subsystem"] = self.subsystem
         if self.system:
             payload["system"] = self.system
         if self.index:
@@ -76,6 +79,7 @@ _FIELD_ALIASES = {
     "domain": "domain",
     "purpose": "subdomain",
     "subdomain": "subdomain",
+    "subsystem": "subsystem",
     "index": "index",
 }
 

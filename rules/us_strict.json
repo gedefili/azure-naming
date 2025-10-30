@@ -12,7 +12,7 @@
       "segments": [
         "slug",
         "system_short",
-        "subdomain",
+        "subsystem",
         "environment",
         "region",
         "index"
@@ -26,7 +26,7 @@
         { "key": "system", "label": "System", "optional": false },
         { "key": "index", "label": "Index" }
       ],
-      "name_template": "{region}{environment}{slug}{sanmar_prefix}{system_short}{index}",
+      "name_template": "{region}{environment}{slug}{sanmar_prefix}{system_short}{subsystem}{index}",
       "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
       "validators": {
         "allowed_values": {
@@ -44,7 +44,7 @@
       "segments": [
         "slug",
         "system_short",
-        "subdomain",
+        "subsystem",
         "environment",
         "region",
         "index"
@@ -58,7 +58,7 @@
         { "key": "system", "label": "System", "optional": false },
         { "key": "index", "label": "Index" }
       ],
-      "name_template": "{region}{environment}{slug}{sanmar_prefix}{system_short}{index}",
+      "name_template": "{region}{environment}{slug}{sanmar_prefix}{system_short}{subsystem}{index}",
       "summary_template": "Key vault '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
       "validators": {
         "allowed_values": {

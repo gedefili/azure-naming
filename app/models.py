@@ -17,6 +17,7 @@ class NameClaimRequest(BaseModel):
     environment: str = Field(..., description="Deployment environment (e.g. dev, prod).")
     project: str | None = Field(default=None, description="Optional project or domain segment.")
     purpose: str | None = Field(default=None, description="Optional purpose or subdomain segment.")
+    subsystem: str | None = Field(default=None, description="Optional subsystem identifier.")
     system: str | None = Field(default=None, description="Optional system identifier.")
     index: str | None = Field(default=None, description="Optional numeric tie breaker.")
     session_id: str | None = Field(
@@ -44,6 +45,7 @@ class NameClaimResponse(BaseModel):
     claimedBy: str
     project: str | None = None
     purpose: str | None = None
+    subsystem: str | None = None
     system: str | None = None
     index: str | None = None
     display: List[DisplayFieldEntry] = Field(default_factory=list)

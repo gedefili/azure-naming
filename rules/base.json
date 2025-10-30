@@ -8,6 +8,7 @@
     "segments": [
       "slug",
       "system_short",
+      "subsystem",
       "domain",
       "subdomain",
       "environment",
@@ -22,8 +23,6 @@
       { "key": "slug", "label": "Slug", "optional": false },
       { "key": "region", "label": "Region", "optional": false },
       { "key": "environment", "label": "Environment", "optional": false },
-      { "key": "project", "label": "Project" },
-      { "key": "purpose", "label": "Purpose" },
       { "key": "system", "label": "System" },
       { "key": "index", "label": "Index" }
     ]
@@ -33,6 +32,7 @@
       "segments": [
         "slug",
         "system_short",
+        "subsystem",
         "domain",
         "subdomain",
         "environment",
@@ -47,8 +47,6 @@
         { "key": "slug", "label": "Slug", "optional": false },
         { "key": "environment", "label": "Environment", "optional": false },
         { "key": "region", "label": "Region", "optional": false },
-        { "key": "project", "label": "Project" },
-        { "key": "purpose", "label": "Purpose" },
         { "key": "system", "label": "System" },
         { "key": "index", "label": "Index" }
       ]
