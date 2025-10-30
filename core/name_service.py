@@ -68,10 +68,6 @@ _REQUIRED_FIELDS = ("resource_type", "region", "environment")
 _FIELD_ALIASES = {
     "system": "system_short",
     "system_short": "system_short",
-    "project": "domain",
-    "domain": "domain",
-    "purpose": "subdomain",
-    "subdomain": "subdomain",
     "subsystem": "subsystem",
     "index": "index",
 }
@@ -143,8 +139,6 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     if check_name_exists(region, environment, name):
         raise NameConflictError(f"Name '{name}' is already in use.")
 
-    project_value = normalized_payload.get("project") or normalized_payload.get("domain")
-    purpose_value = normalized_payload.get("purpose") or normalized_payload.get("subdomain")
     subsystem_value = normalized_payload.get("subsystem")
     system_value = normalized_payload.get("system") or normalized_payload.get("system_short")
     index_value = normalized_payload.get("index")
@@ -153,8 +147,6 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     # Include everything that was sent in the request, normalized to lowercase strings
     entity_metadata = {
         "Slug": slug,
-        "Project": str(project_value).lower() if project_value else None,
-        "Purpose": str(purpose_value).lower() if purpose_value else None,
         "Subsystem": str(subsystem_value).lower() if subsystem_value else None,
         "System": str(system_value).lower() if system_value else None,
         "Index": str(index_value).lower() if index_value else None,
@@ -165,8 +157,8 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     
     # Add any additional custom fields from the normalized payload
     # (excluding core naming fields and internal fields)
-    core_fields = {"resource_type", "region", "environment", "project", "domain", 
-                   "purpose", "subdomain", "system", "system_short", "subsystem", "index", "sessionId", "session_id"}
+    core_fields = {"resource_type", "region", "environment", 
+                   "system", "system_short", "subsystem", "index", "sessionId", "session_id"}
     skip_fields = {"sessionId", "session_id"}
     for key, value in normalized_payload.items():
         if key not in core_fields and key not in skip_fields and value is not None:

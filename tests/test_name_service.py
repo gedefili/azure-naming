@@ -21,10 +21,9 @@ def test_generate_and_claim_name_success(monkeypatch):
         "resourceType": "storage_account",
         "region": "wus2",
         "environment": "dev",
-        "project": "Finance",
-        "purpose": "CostReports",
         "system": "ERP",
         "index": "01",
+        "custom_field": "CustomValue",
     }
 
     captured = {}
@@ -35,11 +34,9 @@ def test_generate_and_claim_name_success(monkeypatch):
         assert region == "wus2"
         assert environment == "dev"
         assert slug == "st"
-        assert optional_inputs["domain"] == "finance"
-        assert optional_inputs["subdomain"] == "costreports"
         assert optional_inputs["system_short"] == "erp"
         assert optional_inputs["index"] == "01"
-        return "sanmar-st-finance-costreports-dev-wus2-01"
+        return "sanmar-st-dev-wus2-erp-01"
 
     monkeypatch.setattr(name_service, "build_name", fake_build_name)
     monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
@@ -63,15 +60,13 @@ def test_generate_and_claim_name_success(monkeypatch):
 
     result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
 
-    assert result.name == "sanmar-st-finance-costreports-dev-wus2-01"
-    assert result.metadata["Project"] == "finance"
-    assert result.metadata["Purpose"] == "costreports"
+    assert result.name == "sanmar-st-dev-wus2-erp-01"
     assert result.metadata["System"] == "erp"
     assert result.metadata["Index"] == "01"
+    assert result.metadata.get("Custom_field") == "customvalue"
 
-    assert captured["claim_args"]["metadata"]["Project"] == "finance"
+    assert captured["claim_args"]["metadata"]["System"] == "erp"
     assert captured["audit"]["metadata"]["Region"] == "wus2"
-    assert captured["audit"]["metadata"]["Project"] == "finance"
 
 
 def test_generate_and_claim_name_conflict(monkeypatch):
@@ -113,7 +108,7 @@ def test_generate_and_claim_name_uses_user_defaults(monkeypatch):
 
     monkeypatch.setattr(name_service, "settings_service", service)
 
-    payload = {"project": "Finance"}
+    payload = {"system": "test"}
 
     monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
     monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
@@ -138,29 +133,25 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
         {
             "resource_type": "app_service",
             "slug": "app",
-            "project": "commerce",
-            "purpose": "checkout",
+            "system": "commerce",
             "index": "01",
         },
         {
             "resource_type": "key_vault",
             "slug": "kv",
-            "project": "security",
-            "purpose": "secrets",
+            "system": "security",
             "index": "02",
         },
         {
             "resource_type": "virtual_machine",
             "slug": "vm",
-            "project": "analytics",
-            "purpose": "batch",
+            "system": "analytics",
             "index": "03",
         },
         {
             "resource_type": "sql_server",
             "slug": "sql",
-            "project": "finance",
-            "purpose": "reporting",
+            "system": "finance",
             "index": "04",
         },
     ]
@@ -212,18 +203,13 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
     for sample in resource_samples:
         resource_type = sample["resource_type"]
         slug = sample["slug"]
-        project = sample.get("project")
-        purpose = sample.get("purpose")
+        system_name = sample.get("system")
         index_value = sample.get("index")
 
         for environment in environments:
             expected_environment = environment.lower()
             for region in regions:
                 expected_region = region.lower()
-                system_length = 3 if resource_type == "storage_account" else 6
-                system_name = "".join(
-                    random_gen.choices(string.ascii_lowercase, k=system_length)
-                )
 
                 payload = {
                     "resource_type": resource_type,
@@ -231,10 +217,6 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                     "region": region,
                     "system": system_name,
                 }
-                if project:
-                    payload["project"] = project
-                if purpose:
-                    payload["purpose"] = purpose
                 if index_value:
                     payload["index"] = index_value
 
@@ -243,10 +225,6 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                 )
 
                 expected_parts = [slug, system_name]
-                if project:
-                    expected_parts.append(project)
-                if purpose:
-                    expected_parts.append(purpose)
                 expected_parts.extend([expected_environment, expected_region])
                 if index_value:
                     expected_parts.append(index_value)
@@ -260,19 +238,8 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                 assert result.environment == expected_environment
                 assert result.region == expected_region
                 assert result.resource_type == resource_type
-                if project:
-                    assert result.project == project
-                else:
-                    assert result.project is None
-                if purpose:
-                    assert result.purpose == purpose
-                else:
-                    assert result.purpose is None
                 if index_value:
-                    assert result.index == index_value
-                else:
-                    assert result.index is None
-                assert result.system == system_name
+                    assert result.metadata["Index"] == index_value
 
                 generated_names.append(result.name)
 
@@ -285,14 +252,6 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                 metadata = claim["metadata"]
                 assert metadata["Slug"] == slug
                 assert metadata["System"] == system_name
-                if project:
-                    assert metadata["Project"] == project
-                else:
-                    assert "Project" not in metadata
-                if purpose:
-                    assert metadata["Purpose"] == purpose
-                else:
-                    assert "Purpose" not in metadata
                 if index_value:
                     assert metadata["Index"] == index_value
                 else:
@@ -306,10 +265,6 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                 assert audit["metadata"]["Region"] == expected_region
                 assert audit["metadata"]["Environment"] == expected_environment
                 assert audit["metadata"]["System"] == system_name
-                if project:
-                    assert audit["metadata"]["Project"] == project
-                if purpose:
-                    assert audit["metadata"]["Purpose"] == purpose
                 if index_value:
                     assert audit["metadata"]["Index"] == index_value
 

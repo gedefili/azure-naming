@@ -200,8 +200,6 @@ def _extract_template_fields(template: str) -> List[Dict[str, str]]:
 
 _SEGMENT_ALIAS_HINTS: Dict[str, Sequence[str]] = {
     "system_short": ("system", "system_short"),
-    "domain": ("project", "domain"),
-    "subdomain": ("purpose", "subdomain"),
     "index": ("index",),
 }
 
