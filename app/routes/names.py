@@ -159,6 +159,7 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
         "Slug": entity.get("Slug"),
         "Project": entity.get("Project"),
         "Purpose": entity.get("Purpose"),
+        "Subsystem": entity.get("Subsystem"),
         "System": entity.get("System"),
         "Index": entity.get("Index"),
     }

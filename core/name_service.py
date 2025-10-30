@@ -152,6 +152,7 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
 
     project_value = normalized_payload.get("project") or normalized_payload.get("domain")
     purpose_value = normalized_payload.get("purpose") or normalized_payload.get("subdomain")
+    subsystem_value = normalized_payload.get("subsystem")
     system_value = normalized_payload.get("system") or normalized_payload.get("system_short")
     index_value = normalized_payload.get("index")
 
@@ -159,6 +160,7 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         "Slug": slug,
         "Project": str(project_value).lower() if project_value else None,
         "Purpose": str(purpose_value).lower() if purpose_value else None,
+        "Subsystem": str(subsystem_value).lower() if subsystem_value else None,
         "System": str(system_value).lower() if system_value else None,
         "Index": str(index_value).lower() if index_value else None,
         "RequestedBy": requested_by,
@@ -181,7 +183,7 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         "ResourceType": resource_type,
         "Slug": slug,
     }
-    audit_metadata.update({k: v for k, v in entity_metadata.items() if k in {"Project", "Purpose", "System", "Index"}})
+    audit_metadata.update({k: v for k, v in entity_metadata.items() if k in {"Project", "Purpose", "Subsystem", "System", "Index"}})
 
     write_audit_log(
         name,
@@ -199,6 +201,7 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
         slug=slug,
         project=entity_metadata.get("Project"),
         purpose=entity_metadata.get("Purpose"),
+        subsystem=entity_metadata.get("Subsystem"),
         system=entity_metadata.get("System"),
         index=entity_metadata.get("Index"),
         rule=rule,
