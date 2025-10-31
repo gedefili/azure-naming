@@ -6,6 +6,8 @@ import logging
 from datetime import datetime
 
 import azure.functions as func
+from azure.core import MatchConditions
+from azure.core.exceptions import ResourceModifiedError
 from azure.data.tables import UpdateMode
 from azure_functions_openapi.decorator import openapi as openapi_doc
 
@@ -144,7 +146,7 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
 
     # Use ETag for optimistic concurrency control to prevent rollback attacks
     # If entity was modified after we fetched it, this will fail
-    etag = entity.get("odata.metadata", {}).get("etag")
+    etag = entity.get("odata.metadata", {}).get("etag") if isinstance(entity.get("odata.metadata"), dict) else None
     
     entity["InUse"] = False
     entity["ReleasedBy"] = user_id
@@ -152,13 +154,13 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     entity["ReleaseReason"] = reason
 
     try:
-        # Use REPLACE mode with ETag to ensure we only update if unmodified since read
-        names_table.update_entity(entity=entity, mode=UpdateMode.REPLACE, match_condition="MatchIfNotModified")
+        # Use REPLACE mode with MatchIfNotModified to ensure we only update if unmodified since read
+        names_table.update_entity(entity=entity, mode=UpdateMode.REPLACE, match_condition=MatchConditions.IfNotModified)
+    except ResourceModifiedError:
+        # Entity was modified after we fetched it - likely a concurrent release
+        logging.warning("[release_name] Concurrent modification detected (ETag mismatch).")
+        return func.HttpResponse("Name was modified by another request. Please retrieve and try again.", status_code=409)
     except Exception as exc:
-        # If ETag mismatch, entity was modified - likely a concurrent release
-        if "etag" in str(exc).lower() or "precondition" in str(exc).lower():
-            logging.warning("[release_name] Concurrent modification detected (ETag mismatch).")
-            return func.HttpResponse("Name was modified by another request. Please retrieve and try again.", status_code=409)
         logging.exception("[release_name] Failed to update storage during release.")
         return func.HttpResponse("Error releasing name.", status_code=500)
 
