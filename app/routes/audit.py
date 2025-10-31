@@ -24,10 +24,47 @@ from app.dependencies import (
 
 
 def _escape(value: str) -> str:
+    """Escape single quotes for OData string literals."""
     return value.replace("'", "''")
 
 
+def _validate_datetime(dt_str: str) -> str:
+    """Validate and sanitize datetime string to prevent OData injection.
+    
+    Accepts ISO 8601 format datetime strings only.
+    Rejects any strings containing quotes, OData keywords, or suspicious patterns.
+    """
+    if not dt_str:
+        raise ValueError("Datetime string is empty")
+    
+    # Reject any quotes, OData syntax, or suspicious characters
+    dangerous_chars = ["'", '"', "or ", "and ", "ne ", "gt ", "lt ", "(", ")", ";"]
+    dt_lower = dt_str.lower()
+    for char in dangerous_chars:
+        if char in dt_lower:
+            raise ValueError(f"Invalid datetime format: contains '{char}'")
+    
+    # Validate ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or similar)
+    # Allow optional Z or ±HH:MM suffix for timezone
+    import re
+    if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})?$', dt_str):
+        raise ValueError("Datetime must be in ISO 8601 format")
+    
+    # Try to parse to catch invalid dates
+    try:
+        from datetime import datetime as dt_class
+        dt_class.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except (ValueError, AttributeError):
+        raise ValueError("Invalid datetime value")
+    
+    return dt_str
+
+
 def _build_filter(params: Dict[str, str]) -> str:
+    """Build OData filter with safe parameter handling.
+    
+    Uses parameterized-style filtering where possible and validates datetime inputs.
+    """
     filters: List[str] = []
 
     user = params.get("user")
@@ -56,11 +93,21 @@ def _build_filter(params: Dict[str, str]) -> str:
 
     start = params.get("start")
     if start:
-        filters.append(f"EventTime ge datetime'{start}'")
+        try:
+            validated_start = _validate_datetime(start)
+            filters.append(f"EventTime ge datetime'{validated_start}'")
+        except ValueError as e:
+            logging.warning(f"[audit] Invalid start datetime: {e}")
+            raise ValueError(f"Invalid start datetime: {e}")
 
     end = params.get("end")
     if end:
-        filters.append(f"EventTime le datetime'{end}'")
+        try:
+            validated_end = _validate_datetime(end)
+            filters.append(f"EventTime le datetime'{validated_end}'")
+        except ValueError as e:
+            logging.warning(f"[audit] Invalid end datetime: {e}")
+            raise ValueError(f"Invalid end datetime: {e}")
 
     return " and ".join(filters)
 

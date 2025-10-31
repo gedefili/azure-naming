@@ -49,6 +49,8 @@ def _normalise_resource_type(resource_type: str) -> tuple[str, str]:
 
     canonical: underscores, lower-case (e.g. 'resource_group')
     human_readable: spaces, lower-case (e.g. 'resource group')
+    
+    Note: Input validation and OData escaping happens in get_slug().
     """
 
     canonical = resource_type.replace(" ", "_").lower()
@@ -56,21 +58,33 @@ def _normalise_resource_type(resource_type: str) -> tuple[str, str]:
     return canonical, human
 
 
+def _escape_odata_string(value: str) -> str:
+    """Escape a string for safe use in OData filter expressions.
+    
+    OData string literals use single quotes and escape by doubling.
+    This prevents OData injection attacks like: ' or '1'='1
+    """
+    return value.replace("'", "''")
+
+
 def get_slug(resource_type: str) -> str:
     """Resolve a slug for the supplied resource_type.
 
     The function attempts to locate a matching row in the SlugMappings table
     by FullName (which stores the resource type name from the upstream source).
-    The query string is intentionally simple so unit tests can assert on it.
+    
+    Uses proper OData escaping to prevent injection attacks.
     """
 
     canonical, human = _normalise_resource_type(resource_type)
     table = get_table_client(TABLE_NAME)
 
-    # Build a simple OData filter that checks FullName
+    # Build OData filter with proper escaping
     # FullName is stored as the canonical name (e.g., 'storage_account')
-    # Using single quotes to match how the SDK formats string constants.
-    filter_str = f"FullName eq '{canonical}'"
+    # OData escaping (doubling single quotes) prevents injection
+    escaped_canonical = _escape_odata_string(canonical)
+    filter_str = f"FullName eq '{escaped_canonical}'"
+    
     entities = list(table.query_entities(filter_str))
     if not entities:
         raise ValueError(f"Slug not found for resource type '{resource_type}'")

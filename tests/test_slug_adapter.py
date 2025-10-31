@@ -12,12 +12,12 @@ class FakeTable:
     def query_entities(self, filter_str):
         # record queries for assertions
         self.queries.append(filter_str)
-        # return a matching entity when FullName matches 'resource group'
-        if "FullName eq 'resource group'" in filter_str:
-            return [{"Slug": "rg", "RowKey": "rg", "ResourceType": "resource_group", "FullName": "resource group"}]
-        # return a matching entity when ResourceType matches 'storage_account'
-        if "ResourceType eq 'storage_account'" in filter_str:
-            return [{"Slug": "st", "RowKey": "st", "ResourceType": "storage_account", "FullName": "storage account"}]
+        # return a matching entity when FullName matches 'resource_group' (canonical form)
+        if "FullName eq 'resource_group'" in filter_str:
+            return [{"Slug": "rg", "RowKey": "rg", "ResourceType": "resource_group", "FullName": "resource_group"}]
+        # return a matching entity when FullName matches 'storage_account' (canonical form)
+        if "FullName eq 'storage_account'" in filter_str:
+            return [{"Slug": "st", "RowKey": "st", "ResourceType": "storage_account", "FullName": "storage_account"}]
         return []
 
 
@@ -25,14 +25,14 @@ def test_get_slug_prefers_fullname_and_resource_type_variants(monkeypatch):
     fake = FakeTable()
     monkeypatch.setattr(slug_adapter, "get_table_client", lambda *_: fake)
 
-    # human-readable lookup
+    # lookup converts "resource group" to canonical "resource_group"
     assert slug_adapter.get_slug("resource group") == "rg"
-    # canonical lookup
+    # lookup with canonical "storage_account" returns slug
     assert slug_adapter.get_slug("storage_account") == "st"
 
-    # queries recorded should include both FullName and ResourceType checks
-    assert any("FullName eq 'resource group'" in q for q in fake.queries)
-    assert any("ResourceType eq 'storage_account'" in q for q in fake.queries)
+    # queries recorded should include canonical form lookups with OData escaping
+    assert any("FullName eq 'resource_group'" in q for q in fake.queries)
+    assert any("FullName eq 'storage_account'" in q for q in fake.queries)
 
 
 def test_get_slug_raises_when_missing(monkeypatch):

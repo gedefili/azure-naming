@@ -34,7 +34,7 @@ def test_generate_and_claim_name_success(monkeypatch):
         assert region == "wus2"
         assert environment == "dev"
         assert slug == "st"
-        assert optional_inputs["system_short"] == "erp"
+        assert optional_inputs["system"] == "erp"
         assert optional_inputs["index"] == "01"
         return "sanmar-st-dev-wus2-erp-01"
 
@@ -74,10 +74,11 @@ def test_generate_and_claim_name_conflict(monkeypatch):
         "resource_type": "storage_account",
         "region": "wus2",
         "environment": "dev",
+        "system": "syst",
     }
 
     monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
-    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "syst-st-dev-wus2")
     monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
     monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: True)
 
@@ -129,36 +130,37 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
         {
             "resource_type": "storage_account",
             "slug": "st",
+            "system": "stor",  # Shortened from "storage" to fit 24 char limit
         },
         {
             "resource_type": "app_service",
             "slug": "app",
-            "system": "commerce",
+            "system": "comm",  # Shortened from "commerce"
             "index": "01",
         },
         {
             "resource_type": "key_vault",
             "slug": "kv",
-            "system": "security",
+            "system": "sec",  # Shortened from "security"
             "index": "02",
         },
         {
             "resource_type": "virtual_machine",
             "slug": "vm",
-            "system": "analytics",
+            "system": "ana",  # Shortened from "analytics"
             "index": "03",
         },
         {
             "resource_type": "sql_server",
             "slug": "sql",
-            "system": "finance",
+            "system": "fin",  # Shortened from "finance"
             "index": "04",
         },
     ]
 
     slug_lookup = {sample["resource_type"].lower(): sample["slug"] for sample in resource_samples}
-    environments = ["Dev", "Qa", "PROD"]
-    regions = ["wus2", "EUS2", "UKS"]
+    environments = ["Dev", "Prd", "Tst"]  # Must match allowed_values in us_strict.json
+    regions = ["wus2", "eus", "eus1"]  # Must match allowed_values in us_strict.json
 
     claimed_records = []
     audit_records = []
@@ -224,14 +226,18 @@ def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
                     payload, requested_by="tester@example.com"
                 )
 
-                expected_parts = [slug, system_name]
-                expected_parts.extend([expected_environment, expected_region])
-                if index_value:
-                    expected_parts.append(index_value)
-
-                expected_name = "-".join(expected_parts)
-                if resource_type == "storage_account":
-                    expected_name = f"sanmar-{expected_name}"
+                # All resource types now use the new default format from base.json:
+                # {region}-{environment}-{slug}-{system_short}{subsystem_segment}{index_segment}
+                # Note: us_strict.json overrides storage_account and key_vault with different format
+                if resource_type in ['storage_account', 'key_vault']:
+                    # us_strict.json template: {region}{environment}{slug}{sanmar_prefix}{system_short}{subsystem}{index}
+                    expected_name = f"{expected_region}{expected_environment}{slug}sanmar{system_name}{index_value if index_value else ''}"
+                else:
+                    # New format from base.json: {region}-{environment}-{slug}-{system_short}{subsystem_segment}{index_segment}
+                    parts = [expected_region, expected_environment, slug, system_name]
+                    if index_value:
+                        parts.append(index_value)
+                    expected_name = "-".join(parts)
 
                 assert result.name == expected_name
                 assert result.slug == slug
@@ -281,10 +287,11 @@ def test_to_dict_includes_display(monkeypatch):
         "resource_type": "storage_account",
         "region": "wus2",
         "environment": "dev",
+        "system": "storage",
     }
 
     monkeypatch.setattr(name_service, "get_slug", lambda _: "st")
-    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "sanmar-st-dev-wus2")
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "storage-st-dev-wus2")
     monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
     monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
     monkeypatch.setattr(name_service, "claim_name", lambda *args, **kwargs: None)
@@ -310,14 +317,14 @@ def _build_us_strict_provider(tmp_path):
             "storage_account": {
                 "segments": [
                     "slug",
-                    "system_short",
+                    "system",
                     "subdomain",
                     "environment",
                     "region",
                     "index",
                 ],
                 "require_sanmar_prefix": True,
-                "name_template": "{region}-{environment}-{slug}-{system_short}{index_segment}",
+                "name_template": "{region}-{environment}-{slug}-{system}{index_segment}",
                 "summary_template": "Storage account '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
                 "validators": {
                     "allowed_values": {

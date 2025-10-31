@@ -37,13 +37,13 @@ def test_build_name_composes_segments():
         slug="st",
         rule=rule,
         optional_inputs={
-            "system_short": "erp",
-            "domain": "fin",
-            "subdomain": "pay",
+            "system": "erp",
+            "subsystem": "pay",
             "index": "01",
         },
     )
-    assert name == "st-erp-fin-pay-prod-wus2-01"
+    # Format: {region}-{environment}-{slug}-{system}{subsystem_segment}{index_segment}
+    assert name == "wus2-prod-st-erp-pay-01"
 
 
 def test_build_name_adds_prefix_when_required():
@@ -53,9 +53,10 @@ def test_build_name_adds_prefix_when_required():
         environment="prod",
         slug="st",
         rule=rule,
-        optional_inputs={},
+        optional_inputs={"system": "sn"},
     )
-    assert name == "sanmar-st-prod-wus2"
+    # Template: {region}{environment}{slug}{sanmar_prefix}{system}{subsystem}{index}
+    assert name == "wus2prodstsanmarsn"
 
 
 def test_build_name_uses_template_when_defined():
@@ -144,7 +145,8 @@ def test_get_slug_supports_space_and_underscore_variants(monkeypatch):
 
         def query_entities(self, query_filter: str):
             self.queries.append(query_filter)
-            if "FullName eq 'resource group'" in query_filter:
+            # Current implementation uses canonical form (underscores)
+            if "FullName eq 'resource_group'" in query_filter:
                 return [{"Slug": "rg"}]
             return []
 
@@ -152,7 +154,7 @@ def test_get_slug_supports_space_and_underscore_variants(monkeypatch):
     monkeypatch.setattr(slug_adapter, "get_table_client", lambda _: fake_table)
 
     assert slug_adapter.get_slug("resource group") == "rg"
-    assert any("FullName eq 'resource group'" in query for query in fake_table.queries)
+    assert any("FullName eq 'resource_group'" in query for query in fake_table.queries)
 
 
 def test_sync_slug_definitions_stores_canonical_and_human_names(monkeypatch):

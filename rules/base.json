@@ -7,7 +7,7 @@
   "default": {
     "segments": [
       "slug",
-      "system_short",
+      "system",
       "subsystem",
       "domain",
       "subdomain",
@@ -17,6 +17,7 @@
     ],
     "max_length": 80,
     "require_sanmar_prefix": false,
+    "name_template": "{region}-{environment}-{slug}-{system}{subsystem_segment}{index_segment}",
     "display": [
       { "key": "name", "label": "Resource Name", "optional": false },
       { "key": "resourceType", "label": "Resource Type", "optional": false },
@@ -26,30 +27,5 @@
       { "key": "system", "label": "System" },
       { "key": "index", "label": "Index" }
     ]
-  },
-  "resources": {
-    "storage_account": {
-      "segments": [
-        "slug",
-        "system_short",
-        "subsystem",
-        "domain",
-        "subdomain",
-        "environment",
-        "region",
-        "index"
-      ],
-      "max_length": 24,
-      "require_sanmar_prefix": true,
-      "display": [
-        { "key": "name", "label": "Storage Account Name", "optional": false },
-        { "key": "resourceType", "label": "Resource Type", "optional": false },
-        { "key": "slug", "label": "Slug", "optional": false },
-        { "key": "environment", "label": "Environment", "optional": false },
-        { "key": "region", "label": "Region", "optional": false },
-        { "key": "system", "label": "System" },
-        { "key": "index", "label": "Index" }
-      ]
-    }
   }
 }

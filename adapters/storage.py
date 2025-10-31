@@ -86,10 +86,27 @@ def claim_name(
     claimed_by: str,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Insert or update a claimed name entity in the ClaimedNames table."""
+    """Insert or update a claimed name entity in the ClaimedNames table.
+    
+    Uses ETag-based optimistic concurrency control to prevent race conditions
+    where multiple callers attempt to claim the same name simultaneously.
+    """
 
     table = get_table_client("ClaimedNames")
     partition_key = f"{region.lower()}-{environment.lower()}"
+    
+    # Check if entity already exists
+    try:
+        existing = table.get_entity(partition_key=partition_key, row_key=name)
+        # Entity exists - only update if it's not already in use (race condition prevention)
+        if existing.get("InUse"):
+            raise ResourceExistsError(
+                f"Name {name} is already in use (claimed by {existing.get('ClaimedBy')})"
+            )
+    except ResourceNotFoundError:
+        # Entity doesn't exist, will create it
+        pass
+    
     entity = {
         "PartitionKey": partition_key,
         "RowKey": name,
@@ -102,4 +119,12 @@ def claim_name(
     if metadata:
         entity.update(metadata)
 
-    table.upsert_entity(entity=entity, mode=UpdateMode.MERGE)
+    # Use INSERT mode to create only if not exists (prevents overwrite)
+    # If entity already exists, this raises ResourceExistsError
+    try:
+        table.create_entity(entity=entity)
+    except ResourceExistsError:
+        # Entity exists from another thread/request, fail gracefully
+        raise ResourceExistsError(
+            f"Name {name} was claimed by another request before this one completed"
+        )

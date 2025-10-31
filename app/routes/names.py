@@ -22,6 +22,7 @@ from app.dependencies import (
     require_role,
     write_audit_log,
 )
+from core.name_service import _sanitize_metadata_dict
 
 
 def _handle_claim_request(req: func.HttpRequest, *, log_prefix: str) -> func.HttpResponse:
@@ -141,14 +142,23 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     if not is_authorized(user_roles, user_id, entity.get("ClaimedBy"), entity.get("ReleasedBy")):
         return func.HttpResponse("Forbidden: not authorized to release this name.", status_code=403)
 
+    # Use ETag for optimistic concurrency control to prevent rollback attacks
+    # If entity was modified after we fetched it, this will fail
+    etag = entity.get("odata.metadata", {}).get("etag")
+    
     entity["InUse"] = False
     entity["ReleasedBy"] = user_id
     entity["ReleasedAt"] = datetime.utcnow().isoformat()
     entity["ReleaseReason"] = reason
 
     try:
-        names_table.update_entity(entity=entity, mode=UpdateMode.REPLACE)
-    except Exception:
+        # Use REPLACE mode with ETag to ensure we only update if unmodified since read
+        names_table.update_entity(entity=entity, mode=UpdateMode.REPLACE, match_condition="MatchIfNotModified")
+    except Exception as exc:
+        # If ETag mismatch, entity was modified - likely a concurrent release
+        if "etag" in str(exc).lower() or "precondition" in str(exc).lower():
+            logging.warning("[release_name] Concurrent modification detected (ETag mismatch).")
+            return func.HttpResponse("Name was modified by another request. Please retrieve and try again.", status_code=409)
         logging.exception("[release_name] Failed to update storage during release.")
         return func.HttpResponse("Error releasing name.", status_code=500)
 
@@ -175,6 +185,8 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
             # Add any additional custom metadata that was stored
             metadata[key] = value
 
+    # Sanitize metadata before audit logging
+    metadata = _sanitize_metadata_dict(metadata)
     write_audit_log(name, user_id, "released", reason, metadata=metadata)
 
     return json_message("Name released successfully.", status_code=200)

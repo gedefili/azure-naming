@@ -3,11 +3,13 @@
 # Created: 2025-07-24
 # Last Modified: 2025-07-24
 # Authors: ChatGPT & Geoff DeFilippi
-# Summary: Shared orchestrator for generating and claiming Azure-compliant names.
+"""Shared orchestrator for generating and claiming Azure-compliant names."""
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
@@ -28,6 +30,108 @@ class InvalidRequestError(ValueError):
 
 class NameConflictError(RuntimeError):
     """Raised when the generated name already exists in storage."""
+
+
+def _sanitize_metadata_key(key: str, max_length: int = 255) -> str:
+    """Sanitize metadata key for safe storage in Azure Table Storage.
+    
+    Removes/replaces:
+    - Control characters (0x00-0x1F, 0x7F)
+    - Invalid OData query characters
+    - Leading/trailing whitespace
+    - Excessive length
+    
+    Args:
+        key: Raw metadata key from request
+        max_length: Maximum allowed key length (Azure limit is 255)
+    
+    Returns:
+        Sanitized key safe for storage
+    """
+    if not key:
+        return "UnknownKey"
+    
+    # Remove control characters
+    sanitized = re.sub(r'[\x00-\x1F\x7F]', '', key)
+    
+    # Replace other problematic characters with underscore
+    sanitized = re.sub(r'[\'"`<>|*/?\\]', '_', sanitized)
+    
+    # Remove leading/trailing whitespace
+    sanitized = sanitized.strip()
+    
+    # Truncate if too long
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+    
+    # Ensure not empty after sanitization
+    if not sanitized:
+        return "UnknownKey"
+    
+    return sanitized
+
+
+def _sanitize_metadata_value(value: Any, max_length: int = 32767) -> str:
+    """Sanitize metadata value for safe storage in Azure Table Storage.
+    
+    Converts to string, removes control characters, limits length.
+    Azure Table Storage strings can be up to 32KB (32767 chars).
+    
+    Args:
+        value: Raw metadata value from request
+        max_length: Maximum allowed value length
+    
+    Returns:
+        Sanitized value safe for storage as string
+    """
+    # Convert to string
+    if isinstance(value, bool):
+        str_value = str(value)
+    elif isinstance(value, (int, float)):
+        str_value = str(value)
+    elif isinstance(value, str):
+        str_value = value
+    elif isinstance(value, (list, dict)):
+        try:
+            str_value = json.dumps(value, ensure_ascii=True)
+        except (TypeError, ValueError):
+            str_value = str(value)
+    else:
+        str_value = str(value)
+    
+    # Remove control characters (except newlines which we'll keep)
+    sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', str_value)
+    
+    # Normalize newlines to spaces for consistency
+    sanitized = re.sub(r'[\r\n\t]', ' ', sanitized)
+    
+    # Truncate if too long
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "...[truncated]"
+    
+    return sanitized.strip()
+
+
+def _sanitize_metadata_dict(metadata: Dict[str, Any]) -> Dict[str, str]:
+    """Sanitize entire metadata dictionary for safe storage.
+    
+    Args:
+        metadata: Raw metadata dict from request
+    
+    Returns:
+        Sanitized metadata dict with string values
+    """
+    if not metadata:
+        return {}
+    
+    sanitized = {}
+    for key, value in metadata.items():
+        if value is not None:
+            clean_key = _sanitize_metadata_key(key)
+            clean_value = _sanitize_metadata_value(value)
+            sanitized[clean_key] = clean_value
+    
+    return sanitized
 
 
 @dataclass
@@ -66,8 +170,7 @@ class NameGenerationResult:
 
 _REQUIRED_FIELDS = ("resource_type", "region", "environment")
 _FIELD_ALIASES = {
-    "system": "system_short",
-    "system_short": "system_short",
+    "system": "system",
     "subsystem": "subsystem",
     "index": "index",
 }
@@ -168,6 +271,9 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
             if entity_key not in entity_metadata:
                 entity_metadata[entity_key] = entity_value
 
+    # Sanitize all metadata for safe storage
+    entity_metadata = _sanitize_metadata_dict(entity_metadata)
+
     claim_name(
         region=region,
         environment=environment,
@@ -202,6 +308,9 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
     audit_metadata.setdefault("Region", region)
     audit_metadata.setdefault("Environment", environment)
     audit_metadata["Slug"] = slug
+
+    # Sanitize audit metadata for safe storage
+    audit_metadata = _sanitize_metadata_dict(audit_metadata)
 
     write_audit_log(
         name,
