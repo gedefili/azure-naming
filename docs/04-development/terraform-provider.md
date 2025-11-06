@@ -31,6 +31,26 @@ go test ./...
 > The automated CI environment in this repository does not have outbound network access, so `go test` will fail if the Go module
 > cache is empty. Run the command locally where dependency downloads are allowed.
 
+## Using the provider with Terraform/OpenTofu
+
+After compiling the provider binary you can point Terraform or OpenTofu at the
+local build by adding a `provider_installation` block to your CLI configuration
+(`~/.terraformrc` or `~/.tofurc`). Replace `<repo-root>` with the absolute path
+to this repository:
+
+```hcl
+provider_installation {
+  dev_overrides {
+    "sanmar/naming" = "<repo-root>/terraform-provider-sanmar"
+  }
+  direct {}
+}
+```
+
+With the override in place a normal `terraform init` or `tofu init` will load
+the provider from your working copy so you can iterate locally without
+publishing to a registry.
+
 ## Provider configuration
 
 ```hcl
@@ -66,6 +86,121 @@ data "sanmar_naming_slug" "storage" {
 * When the provider runs inside Azure (for example from a deployment pipeline) the managed identity will be used automatically.
 * Developers can authenticate locally with `az login`, Visual Studio Code, or environment variables understood by
   `DefaultAzureCredential`.
+
+## Example name claims
+
+The `sanmar_naming_claim` resource supports all of the segments exposed by the
+Azure naming service. You can claim multiple names in the same plan with
+different combinations of optional arguments:
+
+```hcl
+resource "sanmar_naming_claim" "storage" {
+  resource_type = "storage_account"
+  region        = "wus2"
+  environment   = "prd"
+  project       = "atlas"
+}
+
+resource "sanmar_naming_claim" "function" {
+  resource_type = "function_app"
+  region        = "cus"
+  environment   = "stg"
+  purpose       = "orders"
+  subsystem     = "imports"
+}
+
+resource "sanmar_naming_claim" "kv" {
+  resource_type = "key_vault"
+  region        = "eus2"
+  environment   = "dev"
+  system        = "sales"
+  index         = "02"
+}
+
+output "storage_account_name" {
+  value = sanmar_naming_claim.storage.name
+}
+
+output "function_app_name" {
+  value = sanmar_naming_claim.function.name
+}
+
+output "key_vault_name" {
+  value = sanmar_naming_claim.kv.name
+}
+```
+
+Running `terraform apply` or `tofu apply` will request each name from the
+service and surface the generated values via the `name` attribute and outputs.
+Destroying the workspace releases the claims.
+
+### Passing names into modules
+
+You can wire the generated names directly into other modules. The following
+example provisions three names and passes them to a reusable module that creates
+the Azure resources:
+
+```hcl
+module "atlas" {
+  source = "../modules/atlas"
+
+  storage_account_name = sanmar_naming_claim.storage.name
+  function_app_name    = sanmar_naming_claim.function.name
+  key_vault_name       = sanmar_naming_claim.kv.name
+}
+```
+
+Modules can also accept the entire claim object if they need additional
+metadata (such as the claim ID or timestamps). The pattern scales cleanly when
+you have multiple modules to feed:
+
+```hcl
+module "orders" {
+  source = "../modules/orders"
+
+  naming_claim = sanmar_naming_claim.function
+}
+
+module "billing" {
+  source = "../modules/billing"
+
+  naming_claim = sanmar_naming_claim.kv
+}
+```
+
+If you prefer to keep naming concerns local to each module, declare the claims
+inside the module and expose the `name` attribute through module outputs:
+
+```hcl
+// modules/storage-account/main.tf
+resource "sanmar_naming_claim" "this" {
+  resource_type = "storage_account"
+  region        = var.region
+  environment   = var.environment
+  project       = var.project
+}
+
+output "name" {
+  value = sanmar_naming_claim.this.name
+}
+```
+
+Then in the root module you can consume the generated name along with the
+resource that was created inside the child module:
+
+```hcl
+module "storage" {
+  source = "../modules/storage-account"
+
+  region      = "wus2"
+  environment = "prd"
+  project     = "atlas"
+}
+
+output "storage_account_name" {
+  value = module.storage.name
+}
+```
 
 ## Retrying and troubleshooting
 
