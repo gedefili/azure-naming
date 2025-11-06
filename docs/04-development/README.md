@@ -9,6 +9,8 @@ Local development setup, testing, architecture documentation, and tools.
 - **[Architecture Deep Dive](architecture.mmd)** — Mermaid diagram showing system components and flow
 - **[Token Workflow](token_workflow.md)** — How to obtain bearer tokens for CLI and CI/CD testing
 - **[Postman Testing](postman.md)** — Using the Postman collection for manual and automated testing
+- **[Terraform/OpenTofu Provider](terraform-provider.md)** — Building and configuring the first-party Terraform provider
+- **[MCP Server](mcp-server.md)** — Enabling AI agents to claim, release, and inspect names via MCP
 
 ## Assets
 
