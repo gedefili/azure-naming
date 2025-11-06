@@ -87,6 +87,105 @@ data "sanmar_naming_slug" "storage" {
 * Developers can authenticate locally with `az login`, Visual Studio Code, or environment variables understood by
   `DefaultAzureCredential`.
 
+## Reusing stored defaults across Terraform runs
+
+The name service persists per-user defaults so repeated claim requests can omit
+stable fields like environment and region. Defaults can be saved either as
+permanent values for the account or scoped to a short-lived session. The
+`UserSettingsService` writes these values to table storage and merges them into
+every claim payload before the naming rules execute.【F:core/user_settings.py†L180-L236】【F:core/name_service.py†L200-L223】
+
+1. **Persist your defaults once.** The snippet below records both long-lived
+   defaults and a session profile named `terraform-prd`. Replace the
+   placeholders with your Entra object ID and the Function App connection
+   string for table storage.
+
+   ```bash
+   python - <<'PY'
+   import os
+   from core.user_settings import TableStorageSettingsRepository, UserSettingsService
+
+   connection_string = os.environ.get("AzureWebJobsStorage", "<storage-connection-string>")
+   user_id = "<entra-object-id>"
+
+   service = UserSettingsService(
+       repository=TableStorageSettingsRepository(connection_string),
+   )
+
+   service.set_permanent_defaults(
+       user_id,
+       {
+           "environment": "prd",
+           "region": "wus2",
+           "system": "commerce",
+       },
+   )
+
+   service.set_session_defaults(
+       user_id,
+       "terraform-prd",
+       {
+           "environment": "prd",
+           "region": "wus2",
+           "system": "commerce",
+       },
+   )
+   PY
+   ```
+
+   The same call works against the in-memory repository during local
+   development; omit the connection string to fall back automatically.【F:core/user_settings.py†L237-L259】
+
+2. **Call the claim endpoint with only the changing pieces.** After storing
+   defaults you can issue an HTTP request that omits the repeated fields. The
+   backend fills them in before generating the name.
+
+   ```bash
+   curl -X POST "https://<function-app-hostname>/api/claim" \
+     -H "Authorization: Bearer ${TOKEN}" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "resource_type": "storage_account",
+       "session_id": "terraform-prd",
+       "project": "atlas"
+     }'
+   ```
+
+3. **Reference the same session from Terraform.** Attach the `session_id`
+   attribute to each `sanmar_naming_claim` resource so the provider forwards it
+   with every request. Only provide the segments that vary per resource—here the
+   project slug—while the service injects the saved environment, region, and
+   system values.【F:terraform-provider-sanmar/provider/resource_claim.go†L32-L85】【F:terraform-provider-sanmar/provider/resource_claim.go†L120-L164】
+
+   ```hcl
+   locals {
+     naming_session = "terraform-prd"
+   }
+
+   resource "sanmar_naming_claim" "storage" {
+     resource_type = "storage_account"
+     region        = "wus2"      # required by the provider schema today
+     environment   = "prd"       # mirrors the stored default
+     session_id    = local.naming_session
+
+     project = "atlas"
+   }
+
+   resource "sanmar_naming_claim" "function" {
+     resource_type = "function_app"
+     region        = "wus2"
+     environment   = "prd"
+     session_id    = local.naming_session
+
+     project = "atlas"
+     purpose = "api"
+   }
+   ```
+
+   Because the defaults are stored server-side, you can create additional claim
+   resources that only set the fields which vary (such as `project`, `purpose`,
+   or `index`) without repeating broader context in every API payload.
+
 ## Example name claims
 
 The `sanmar_naming_claim` resource supports all of the segments exposed by the
