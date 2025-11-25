@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "name": "US resource overlay - Deprecated",
+    "priority": 100,
+    "enabled": false,
+    "description": "This file has been split into us_storage_account.json and us_key_vault.json. Use those files instead. Toggle `enabled` to false to deactivate."
+  },
+  "resources": {}
+}

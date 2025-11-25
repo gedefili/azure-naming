@@ -1,0 +1,1032 @@
+{
+  "info": {
+    "name": "Azure Naming API - Local Development",
+    "_postman_id": "azure-naming-local-dev",
+    "description": "Comprehensive collection for testing the Azure Naming API locally. Includes multiple test scenarios for each endpoint including happy path, error cases, and edge cases.\n\nPrerequisites:\n- Azure Functions host running on http://localhost:7071\n- Azurite (Azure Storage Emulator) running on http://127.0.0.1:10002\n- Token set in 'auth_token' variable (or LOCAL_AUTH_BYPASS=true for dev mode)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7071",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string",
+      "description": "Bearer token for authentication. Leave empty if LOCAL_AUTH_BYPASS=true"
+    },
+    {
+      "key": "claimed_name",
+      "value": "",
+      "type": "string",
+      "description": "Name from claim 2.1 (auto-populated by test)"
+    },
+    {
+      "key": "claimed_region",
+      "value": "wus2",
+      "type": "string",
+      "description": "Region from claim 2.1"
+    },
+    {
+      "key": "claimed_environment",
+      "value": "prd",
+      "type": "string",
+      "description": "Environment from claim 2.1"
+    },
+    {
+      "key": "claimed_name_2",
+      "value": "",
+      "type": "string",
+      "description": "Name from claim 2.2 (auto-populated by test)"
+    },
+    {
+      "key": "claimed_region_2",
+      "value": "eus",
+      "type": "string",
+      "description": "Region from claim 2.2"
+    },
+    {
+      "key": "claimed_environment_2",
+      "value": "tst",
+      "type": "string",
+      "description": "Environment from claim 2.2"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Slug Endpoints",
+      "description": "Slug lookup and synchronization endpoints",
+      "item": [
+        {
+          "name": "1.1 Slug Lookup - Valid Resource Type (storage_account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has resourceType', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('resourceType');",
+                  "});",
+                  "pm.test('Response has slug', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('slug');",
+                  "    pm.expect(pm.response.json().slug).to.equal('st');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug?resource_type=storage_account",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug"],
+              "query": [
+                {
+                  "key": "resource_type",
+                  "value": "storage_account"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.2 Slug Lookup - Different Valid Type (cosmos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has slug for cosmos', function() {",
+                  "    var slug = pm.response.json().slug;",
+                  "    pm.expect(slug).to.be.a('string');",
+                  "    pm.expect(slug.length).to.be.greaterThan(0);",
+                  "    pm.expect(slug).to.equal('cosmos_db');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug?resource_type=cosmos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug"],
+              "query": [
+                {
+                  "key": "resource_type",
+                  "value": "cosmos"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.3 Slug Lookup - Invalid/Unknown Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 for unknown resource type', function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Error message present', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug?resource_type=unknown_resource_xyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug"],
+              "query": [
+                {
+                  "key": "resource_type",
+                  "value": "unknown_resource_xyz"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.4 Slug Lookup - Missing Parameter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 for missing parameter', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message indicates missing field', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.message).to.match(/(resource_type|Missing|required)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug"]
+            }
+          }
+        },
+        {
+          "name": "1.5 Slug Sync - Fetch and Update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has message', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "});",
+                  "pm.test('Message indicates sync completed', function() {",
+                  "    var msg = pm.response.json().message;",
+                  "    pm.expect(msg).to.match(/Slug sync complete/i);",
+                  "});",
+                  "pm.test('Message shows counts (created/updated/existing)', function() {",
+                  "    var msg = pm.response.json().message;",
+                  "    pm.expect(msg).to.match(/\\\\d+ (created|updated|existing)/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug_sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug_sync"]
+            }
+          }
+        },
+        {
+          "name": "1.6 Slug Sync - Without Authentication",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 (no auth) or 500 (no token configured)', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([401, 500]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slug_sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "slug_sync"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Claim Name Endpoints",
+      "description": "Generate and claim compliant resource names",
+      "item": [
+        {
+          "name": "2.1 Claim Name - Happy Path (storage_account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has name field', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('name');",
+                  "});",
+                  "pm.test('Response has all required fields', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('resourceType');",
+                  "    pm.expect(json).to.have.property('region');",
+                  "    pm.expect(json).to.have.property('environment');",
+                  "    pm.expect(json).to.have.property('slug');",
+                  "    pm.expect(json).to.have.property('claimedBy');",
+                  "});",
+                  "pm.test('Name is lowercase', function() {",
+                  "    var name = pm.response.json().name;",
+                  "    pm.expect(name).to.equal(name.toLowerCase());",
+                  "});",
+                  "pm.test('Save claimed name for release test', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.name) {",
+                  "        pm.collectionVariables.set('claimed_name', json.name);",
+                  "        pm.collectionVariables.set('claimed_region', json.region);",
+                  "        pm.collectionVariables.set('claimed_environment', json.environment);",
+                  "        pm.expect(json.name).to.be.a('string');",
+                  "    } else {",
+                  "        pm.expect.fail('Response missing name field or is not a valid JSON object');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"region\": \"wus2\",\n  \"environment\": \"prd\",\n  \"system\": \"erp\",\n  \"index\": \"01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        },
+        {
+          "name": "2.2 Claim Name - Different Region",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Name contains correct region (eus)', function() {",
+                  "    var name = pm.response.json().name;",
+                  "    pm.expect(name).to.include('eus');",
+                  "});",
+                  "pm.test('Save claimed name for release test', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.name) {",
+                  "        pm.collectionVariables.set('claimed_name_2', json.name);",
+                  "        pm.collectionVariables.set('claimed_region_2', json.region);",
+                  "        pm.collectionVariables.set('claimed_environment_2', json.environment);",
+                  "        pm.expect(json.name).to.be.a('string');",
+                  "    } else {",
+                  "        pm.expect.fail('Response missing name field or is not a valid JSON object');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"region\": \"eus\",\n  \"environment\": \"tst\",\n  \"system\": \"accounting\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        },
+        {
+          "name": "2.3 Claim Name - Missing Required Field (region)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message indicates missing field', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.message).to.match(/(region|Missing|required)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"environment\": \"prd\",\n  \"system\": \"erp\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        },
+        {
+          "name": "2.4 Claim Name - Missing Required Field (environment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message indicates missing environment', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.message).to.match(/(environment|Missing|required)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"region\": \"wus2\",\n  \"system\": \"erp\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        },
+        {
+          "name": "2.5 Claim Name - Invalid JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message about invalid JSON', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.message).to.match(/(Invalid|JSON|parse)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ invalid json here }"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        },
+        {
+          "name": "2.6 Claim Name - Without Authentication",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 (unauthorized)', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"storage_account\",\n  \"region\": \"wus2\",\n  \"environment\": \"prd\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "claim"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Release Name Endpoints",
+      "description": "Release previously claimed resource names",
+      "item": [
+        {
+          "name": "3.1 Release Name - Happy Path (with claimed name)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success message', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "    pm.expect(pm.response.json().message).to.match(/(released|successfully|success)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{claimed_name}}\",\n  \"region\": \"{{claimed_region}}\",\n  \"environment\": \"{{claimed_environment}}\",\n  \"reason\": \"Test release - no longer needed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.1b Release Name - Release Second Claim (eus/tst)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success message', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "    pm.expect(pm.response.json().message).to.match(/(released|successfully|success)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{claimed_name_2}}\",\n  \"region\": \"{{claimed_region_2}}\",\n  \"environment\": \"{{claimed_environment_2}}\",\n  \"reason\": \"Test release for second claim (eus/tst) - no longer needed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.3 Release Name - Simplified (name only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 (success)', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success message', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('message');",
+                  "    pm.expect(pm.response.json().message).to.match(/(released|successfully|success)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{claimed_name}}\",\n  \"reason\": \"Simplified release test - using auto-saved name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.4 Release Name - Non-Existent Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 for non-existent name', function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Error message indicates not found', function() {",
+                  "    pm.expect(pm.response.json().message).to.match(/(not found|does not exist)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"nonexistentname123456\",\n  \"region\": \"wus2\",\n  \"environment\": \"prd\",\n  \"reason\": \"Test release of non-existent name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.5 Release Name - Missing Name Field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message about missing name', function() {",
+                  "    pm.expect(pm.response.json().message).to.match(/(name|Missing|required)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prd\",\n  \"reason\": \"Test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.6 Release Name - Invalid JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ invalid json }"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        },
+        {
+          "name": "3.7 Release Name - Without Authentication",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 (unauthorized)', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"test_name\",\n  \"region\": \"wus2\",\n  \"environment\": \"prd\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "release"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Audit & Rules Endpoints",
+      "description": "Audit log and naming rules endpoints",
+      "item": [
+        {
+          "name": "4.1 Get Audit Logs - Claimed Name Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an object with audit details', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('claimed_by');",
+                  "});",
+                  "pm.test('Name matches what we claimed', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.name).to.equal(pm.variables.get('claimed_name'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/audit?region={{claimed_region}}&environment={{claimed_environment}}&name={{claimed_name}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "audit"],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "{{claimed_region}}"
+                },
+                {
+                  "key": "environment",
+                  "value": "{{claimed_environment}}"
+                },
+                {
+                  "key": "name",
+                  "value": "{{claimed_name}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 Get Audit Logs - Query by Region & Environment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an object with audit history', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    pm.expect(json).to.have.property('user');",
+                  "    pm.expect(json).to.have.property('project');",
+                  "});",
+                  "pm.test('Region and environment match requested values', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.region.toLowerCase()).to.equal('{{claimed_region}}'.toLowerCase());",
+                  "    pm.expect(json.environment.toLowerCase()).to.equal('{{claimed_environment}}'.toLowerCase());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/audit?region={{claimed_region}}&environment={{claimed_environment}}&name={{claimed_name}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "audit"],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "{{claimed_region}}"
+                },
+                {
+                  "key": "environment",
+                  "value": "{{claimed_environment}}"
+                },
+                {
+                  "key": "name",
+                  "value": "{{claimed_name}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.3 Describe Naming Rule - storage_account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has rule description', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('resourceType');",
+                  "    pm.expect(json).to.have.property('maxLength');",
+                  "    pm.expect(json).to.have.property('segments');",
+                  "});",
+                  "pm.test('Rule is for storage_account', function() {",
+                  "    pm.expect(pm.response.json().resourceType).to.equal('storage_account');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rules/storage_account",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rules", "storage_account"]
+            }
+          }
+        },
+        {
+          "name": "4.4 Describe Naming Rule - default",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Default rule has segments', function() {",
+                  "    pm.expect(pm.response.json()).to.have.property('segments');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rules/default",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rules", "default"]
+            }
+          }
+        },
+        {
+          "name": "4.5 Describe Naming Rule - Unknown Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 or 400 for unknown rule', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([400, 404]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rules/unknown_rule_type",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rules", "unknown_rule_type"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

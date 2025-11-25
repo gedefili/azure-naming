@@ -1,0 +1,69 @@
+{
+  "info": {
+    "name": "Azure Naming API - Local",
+    "_postman_id": "00000000-0000-0000-0000-000000000000",
+    "description": "Collection to exercise slug lookup, slug sync, claim and release endpoints against a local function host.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:7071" },
+    { "key": "auth_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Slug Lookup",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/slug?resource_type=storage_account",
+          "query": [{ "key": "resource_type", "value": "storage_account" }]
+        }
+      }
+    },
+    {
+      "name": "Slug Sync (POST)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{auth_token}}" } ],
+        "url": {
+          "raw": "{{baseUrl}}/api/slug_sync"
+        }
+      }
+    },
+    {
+      "name": "Claim Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\",\n  \"resource_type\": \"storage_account\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/claim"
+        }
+      }
+    },
+    {
+      "name": "Release Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"region\": \"wus2\",\n  \"environment\": \"prod\",\n  \"name\": \"sanmar-st-prod-wus2\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/release"
+        }
+      }
+    }
+  ]
+}
