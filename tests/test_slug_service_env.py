@@ -39,12 +39,18 @@ def test_load_providers_from_env(monkeypatch, tmp_path):
 
     monkeypatch.setenv("SLUG_PROVIDER", f"{module_name}.EnvProvider")
 
-    # reload slug_service to pick up env provider
-    importlib.reload(slug_service)
+    # Temporarily add test provider to allowlist and call loader directly
+    original_allowed = slug_service._ALLOWED_SLUG_PROVIDERS.copy()
+    slug_service._ALLOWED_SLUG_PROVIDERS.add(f"{module_name}.EnvProvider")
+    original_providers = slug_service.get_slug_providers()
 
     try:
+        env_providers = slug_service._load_providers_from_env()
+        assert env_providers is not None
+        slug_service.set_slug_providers(env_providers)
         assert slug_service.get_slug("env") == "ev"
     finally:
-        # cleanup: remove env var and reload original module
+        # cleanup
+        slug_service._ALLOWED_SLUG_PROVIDERS = original_allowed
+        slug_service.set_slug_providers(original_providers)
         monkeypatch.delenv("SLUG_PROVIDER", raising=False)
-        importlib.reload(slug_service)
