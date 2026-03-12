@@ -7,10 +7,10 @@
 **Location**: `app/routes/audit.py`
 
 **Implementation**:
-- [x] Added `_validate_datetime()` function (~30 lines)
-- [x] Validates ISO 8601 format
-- [x] Rejects OData keywords: 'or', 'and', 'not', 'ne', 'gt', 'lt', 'eq'
-- [x] Rejects quote characters
+- [x] Replaced `_validate_datetime()` regex/blocklist with stdlib `datetime.fromisoformat()` (~15 lines)
+- [x] Validates ISO 8601 format via stdlib parser (no brittle regex)
+- [x] Canonical `strftime()` re-format makes injection impossible by construction
+- [x] Accepts all valid ISO 8601 variants (fractional seconds, timezone offsets)
 - [x] Enhanced `_build_filter()` to call validation
 - [x] Error handling properly returns ValueError
 

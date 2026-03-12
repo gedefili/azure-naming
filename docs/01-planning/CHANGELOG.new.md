@@ -6,6 +6,43 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.8.0] - 2026-03-12
+
+### Security
+
+* **C-01**: Production guard on local auth bypass — `RuntimeError` if `ALLOW_LOCAL_AUTH_BYPASS` enabled in Azure (`core/local_bypass.py`)
+* **C-02**: Metadata injection prevention — filter reserved entity keys in storage adapter (`adapters/storage.py`)
+* **H-01**: JWT issuer validation and cached JWKS client (`core/auth.py`)
+* **H-02**: Allowlist for dynamic provider loading in `naming_rules` and `slug_service`
+* **M-01**: OData datetime injection fix — parse-and-reformat replaces regex bypass (`app/routes/audit.py`)
+* **M-02**: Removed `ANONYMOUS` auth levels from docs, rules, and slug endpoints
+* **M-03**: Pydantic models `extra='allow'` → `extra='ignore'` to reject unknown fields
+
+### Added
+
+* **Terraform deployment IaC** — Complete infrastructure-as-code in `deploy/` for Azure Function App, Storage, Entra ID, Key Vault, and Application Insights
+* **9 new test modules** — Comprehensive coverage for auth, storage injection, routes, name generation, and error handling (1,617 lines)
+* **System overview document** — `SYSTEM_OVERVIEW.md` with architecture, storage design, and development stack
+* **Security review report** — Full 36-finding security review in `docs/05-operations/security-review-2026-03-12.md`
+* `core/local_bypass.py` — Self-contained auth bypass module with production safeguards
+
+### Changed
+
+* `core/auth.py` — Refactored to use `local_bypass` module; improved error handling and logging
+* `tests/test_audit_routes.py` — Expanded with OData datetime validation tests
+* `tests/test_slug_service_env.py` — Added provider allowlist enforcement tests
+
+### Documentation
+
+* Updated security fix summaries, validation reports, and verification documents
+* Added security review findings and remediation tracking
+
+### Backward Compatibility
+
+* ✅ Fully backward compatible — no API contract changes; security hardening is transparent to clients
+
+---
+
 ## [1.7.1] - 2025-10-29
 
 ### Added

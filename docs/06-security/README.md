@@ -55,9 +55,12 @@ All user input must be validated before use:
 
 ```python
 # app/routes/audit.py
-def _validate_datetime(dt_str: str):
-    """Validate datetime format and reject OData injection."""
-    # Checks: format, keywords, special characters
+def _validate_datetime(dt_str: str) -> str:
+    """Validate and sanitize datetime string to prevent OData injection.
+
+    Uses datetime.fromisoformat() and re-formats to a canonical string."""
+    parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
     
 # adapters/slug.py
 def _escape_odata_string(value: str):

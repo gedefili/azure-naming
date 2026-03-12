@@ -465,12 +465,22 @@ All three persistence points protected:
 ### 1. OData Injection in Audit Filters ✅ FIXED
 
 **File**: `app/routes/audit.py`  
-**Fix**: Added `_validate_datetime()` function to reject OData keywords and special characters before filter construction.
+**Fix**: Replaced regex-and-blocklist validation with stdlib `datetime.fromisoformat()`. The function parses the input and re-formats to a canonical ISO 8601 string, making injection impossible by construction.
 
 ```python
-def _validate_datetime(dt_str: str) -> None:
-    """Validate datetime format and reject OData injection attempts."""
-    # Checks: ISO 8601 format, rejects 'or'/'and'/'ne'/'gt'/'lt'/'eq', blocks quotes
+def _validate_datetime(dt_str: str) -> str:
+    """Validate and sanitize datetime string to prevent OData injection.
+
+    Parses with datetime.fromisoformat() and re-formats to a canonical
+    ISO 8601 string, which is injection-safe by construction.
+    """
+    if not dt_str:
+        raise ValueError("Datetime string is empty")
+    try:
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        raise ValueError("Datetime must be in ISO 8601 format")
+    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 ```
 
 **Test Status**: ✅ Passing (`test_query_audit_entities_*`)

@@ -23,7 +23,8 @@ Fix all 5 HIGH severity security issues identified in the October 16, 2025 secur
 
 ### Source Code Changes
 1. **app/routes/audit.py**
-   - Added `_validate_datetime()` function (~30 lines)
+   - Replaced `_validate_datetime()` regex/blocklist with stdlib `datetime.fromisoformat()` (~15 lines)
+   - Canonical `strftime()` re-format prevents injection by construction
    - Enhanced `_build_filter()` with validation (~20 lines)
 
 2. **adapters/slug.py**
@@ -101,9 +102,9 @@ pytest tests/ -v
 ## Security Improvements
 
 ### Input Validation
-- ✅ Datetime format validation (ISO 8601 only)
-- ✅ OData keyword rejection ('or', 'and', 'not', etc.)
-- ✅ Quote character blocking
+- ✅ Datetime validation via stdlib `datetime.fromisoformat()` (replaces brittle regex)
+- ✅ Canonical re-format via `strftime()` — output is injection-safe by construction
+- ✅ Accepts all valid ISO 8601 variants (fractional seconds, timezone offsets)
 - ✅ OData string escaping (proper RFC compliance)
 
 ### Concurrency Control
