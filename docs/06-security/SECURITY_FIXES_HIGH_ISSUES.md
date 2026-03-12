@@ -50,72 +50,47 @@ GET /audit/query?start=2025-01-01' or '1'='1&end=2025-12-31
 
 ### Remediation
 
-Added comprehensive datetime validation before filter construction:
+Replaced the brittle regex-and-blocklist approach with Python's stdlib `datetime.fromisoformat()`. The function now parses the input, then re-formats it to a canonical string — making injection impossible by construction since the output is always machine-generated.
 
 ```python
 # app/routes/audit.py
+from datetime import datetime
 
-def _validate_datetime(dt_str: str) -> None:
-    """Validate datetime format and reject OData injection attempts.
-    
-    Validates:
-    1. ISO 8601 format (YYYY-MM-DD[T]HH:MM:SS[Z|±HH:MM])
-    2. Rejects OData keywords: 'or', 'and', 'not', 'ne', 'gt', 'lt', 'eq'
-    3. Rejects quote characters: ' (single) or " (double)
-    4. Rejects parentheses and other special operators
+def _validate_datetime(dt_str: str) -> str:
+    """Validate and sanitize datetime string to prevent OData injection.
+
+    Parses with datetime.fromisoformat() and re-formats to a canonical
+    ISO 8601 string, which is injection-safe by construction.
     """
     if not dt_str:
-        raise ValueError("Datetime cannot be empty")
-    
-    # Check for OData injection patterns
-    odata_keywords = {'or', 'and', 'not', 'ne', 'gt', 'lt', 'eq'}
-    lower = dt_str.lower()
-    for keyword in odata_keywords:
-        if f"' {keyword} " in lower or f"' {keyword}(" in lower:
-            raise ValueError(f"OData keyword '{keyword}' not allowed in datetime")
-    
-    # Reject quote characters
-    if "'" in dt_str or '"' in dt_str:
-        raise ValueError("Quote characters not allowed in datetime")
-    
-    # Validate ISO 8601 format
-    iso_pattern = r'^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?([Z+-]\d{2}:\d{2})?$'
-    if not re.match(iso_pattern, dt_str):
-        raise ValueError(f"Invalid ISO 8601 datetime format: {dt_str}")
+        raise ValueError("Datetime string is empty")
 
-def _build_filter(start=None, end=None, ...):
-    """Build OData filter with validated parameters."""
-    
-    conditions = []
-    
-    if start:
-        _validate_datetime(start)  # Raises ValueError if invalid
-        conditions.append(f"EventTime ge datetime'{start}'")
-    
-    if end:
-        _validate_datetime(end)    # Raises ValueError if invalid
-        conditions.append(f"EventTime le datetime'{end}'")
-    
-    return " and ".join(conditions)
+    try:
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        raise ValueError("Datetime must be in ISO 8601 format")
+
+    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 ```
 
 ### Protection
 
-- ✅ Datetime format validation (ISO 8601 only)
-- ✅ OData keyword rejection
-- ✅ Quote character blocking
-- ✅ Secure by default (rejects ambiguous input)
+- ✅ Stdlib `datetime.fromisoformat()` parsing — no regex needed
+- ✅ Canonical re-format via `strftime()` — output can never contain injection payloads
+- ✅ Accepts all valid ISO 8601 variants (fractional seconds, timezone offsets, etc.)
+- ✅ Secure by construction (machine-generated output replaces raw user input)
 
 ### Testing
 
 ```python
-# Valid datetime passes
-_validate_datetime("2025-10-31")  # ✅ Pass
-_validate_datetime("2025-10-31T14:30:00Z")  # ✅ Pass
+# Valid datetime passes (returns canonical format)
+_validate_datetime("2025-10-31T14:30:00Z")       # ✅ "2025-10-31T14:30:00Z"
+_validate_datetime("2025-10-31T14:30:00+05:30")   # ✅ "2025-10-31T14:30:00Z"
+_validate_datetime("2025-10-31T14:30:00.123Z")    # ✅ "2025-10-31T14:30:00Z"
 
-# OData injection rejected
-_validate_datetime("2025-01-01' or '1'='1")  # ❌ ValueError
-_validate_datetime("2025-01-01' and EventId eq '123")  # ❌ ValueError
+# OData injection rejected (not valid ISO 8601)
+_validate_datetime("2025-01-01' or '1'='1")             # ❌ ValueError
+_validate_datetime("2025-01-01' and EventId eq '123")   # ❌ ValueError
 
 # Test coverage: audit route tests (pass)
 ```
