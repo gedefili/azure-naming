@@ -226,9 +226,20 @@ DEFAULT_RULE: NamingRule
 RESOURCE_RULES: Dict[str, NamingRule]
 
 
+_ALLOWED_RULE_PROVIDERS = {
+    "providers.json_rules.JsonRuleProvider",
+}
+
+
 def _load_provider_from_env() -> Optional[NamingRuleProvider]:
     provider_path = os.environ.get("NAMING_RULE_PROVIDER")
     if not provider_path:
+        return None
+
+    if provider_path not in _ALLOWED_RULE_PROVIDERS:
+        logger.error(
+            "NAMING_RULE_PROVIDER %r is not in the allowed list", provider_path
+        )
         return None
 
     try:

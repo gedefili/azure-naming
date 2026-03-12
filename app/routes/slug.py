@@ -74,7 +74,7 @@ def _resolve_slug_payload(resource_type: str) -> Dict[str, str]:
 
 
 @app.function_name(name="get_slug_mapping")
-@app.route(route="slug", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="slug", methods=[func.HttpMethod.GET])
 @openapi_doc(
     summary="Resolve a slug for a resource type",
     description="Returns the short slug used when generating names for the requested resource type.",

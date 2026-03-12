@@ -117,7 +117,14 @@ def claim_name(
     }
 
     if metadata:
-        entity.update(metadata)
+        # Filter out reserved entity keys to prevent metadata injection (C-02)
+        _RESERVED_KEYS = {
+            "PartitionKey", "RowKey", "InUse", "ClaimedBy", "ClaimedAt",
+            "ReleasedBy", "ReleasedAt", "ReleaseReason", "Timestamp",
+            "odata.metadata", "odata.type", "odata.etag", "etag",
+        }
+        filtered = {k: v for k, v in metadata.items() if k not in _RESERVED_KEYS}
+        entity.update(filtered)
 
     # Use INSERT mode to create only if not exists (prevents overwrite)
     # If entity already exists, this raises ResourceExistsError

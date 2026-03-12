@@ -16,6 +16,12 @@ from typing import Dict, Iterable, List, Optional
 import jwt
 from jwt import InvalidTokenError, PyJWKClient
 
+from core.local_bypass import (
+    LOCAL_AUTH_BYPASS,
+    LOCAL_BYPASS_ROLES,
+    LOCAL_BYPASS_USER_ID,
+)
+
 
 def _load_role_groups() -> Dict[str, str]:
     """Load Entra group IDs for roles from environment variables."""
@@ -83,18 +89,8 @@ def _canonicalize_roles(raw_roles: Iterable[str]) -> List[str]:
     return canonical_roles
 
 
-def _to_bool(value: str) -> bool:
-    return value.strip().lower() in {"1", "true", "yes", "on"} if value else False
-
-
-LOCAL_AUTH_BYPASS = _to_bool(os.environ.get("ALLOW_LOCAL_AUTH_BYPASS", ""))
-LOCAL_BYPASS_USER_ID = os.environ.get("LOCAL_BYPASS_USER_ID", "local-dev-user")
-_LOCAL_BYPASS_RAW = [
-    role.strip()
-    for role in os.environ.get("LOCAL_BYPASS_ROLES", "contributor,admin").split(",")
-    if role.strip()
-]
-LOCAL_BYPASS_ROLES = _canonicalize_roles(_LOCAL_BYPASS_RAW) or ["contributor"]
+# Local auth bypass configuration is maintained in core/local_bypass.py
+# See that module for security-critical safeguards and documentation.
 
 
 class AuthError(Exception):
@@ -117,6 +113,20 @@ def parse_client_principal(headers: Dict[str, str]) -> dict:
     return principal_json
 
 
+# Cache the JWKS client at module level to avoid per-request HTTP calls
+_jwk_client: PyJWKClient | None = None
+
+
+def _get_jwk_client() -> PyJWKClient:
+    """Return a cached PyJWKClient instance."""
+    global _jwk_client
+    if _jwk_client is None:
+        if not JWKS_URL:
+            raise AuthError("Tenant ID not configured", status=500)
+        _jwk_client = PyJWKClient(JWKS_URL, cache_keys=True, lifespan=3600)
+    return _jwk_client
+
+
 def verify_jwt(headers: Dict[str, str]) -> dict:
     """Validate Authorization bearer token and return claims."""
     auth_header = headers.get("Authorization") or headers.get("authorization")
@@ -125,23 +135,30 @@ def verify_jwt(headers: Dict[str, str]) -> dict:
 
     token = auth_header.split(" ", 1)[1]
 
-    if not JWKS_URL:
-        raise AuthError("Tenant ID not configured", status=500)
-
-    jwk_client = PyJWKClient(JWKS_URL)
+    jwk_client = _get_jwk_client()
     try:
         signing_key = jwk_client.get_signing_key_from_jwt(token)
+        expected_issuer = (
+            f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
+            if TENANT_ID
+            else None
+        )
         claims = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
             audience=CLIENT_ID or None,
+            issuer=expected_issuer,
+            options={"require": ["exp", "iss", "aud"]} if expected_issuer else {},
         )
-        logging.debug(f"[auth] Verified JWT claims: {claims}")
+        logging.debug("[auth] Verified JWT for oid=%s", claims.get("oid"))
         return claims
-    except (InvalidTokenError, Exception) as exc:
-        logging.exception("[auth] JWT validation failed")
+    except InvalidTokenError as exc:
+        logging.warning("[auth] JWT validation failed: %s", exc)
         raise AuthError("Invalid token", status=401) from exc
+    except Exception as exc:
+        logging.exception("[auth] Unexpected error during JWT validation")
+        raise AuthError("Authentication service error", status=500) from exc
 
 
 def require_role(headers: Dict[str, str], min_role: str = "reader") -> tuple[str, List[str]]:

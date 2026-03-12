@@ -12,7 +12,7 @@ from core import naming_rules
 
 
 @app.function_name(name="list_naming_rules")
-@app.route(route="rules", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="rules", methods=[func.HttpMethod.GET])
 @openapi_doc(
     summary="List available naming rules",
     description="Returns the known resource types with explicitly defined naming rules.",
@@ -40,7 +40,7 @@ def list_naming_rules(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.function_name(name="get_naming_rule")
-@app.route(route="rules/{resource_type}", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="rules/{resource_type}", methods=[func.HttpMethod.GET])
 @openapi_doc(
     summary="Retrieve a naming rule specification",
     description="Returns the name template, display metadata, and segment mappings for a resource type.",
