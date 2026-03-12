@@ -31,33 +31,18 @@ def _escape(value: str) -> str:
 def _validate_datetime(dt_str: str) -> str:
     """Validate and sanitize datetime string to prevent OData injection.
     
-    Accepts ISO 8601 format datetime strings only.
-    Rejects any strings containing quotes, OData keywords, or suspicious patterns.
+    Parses with datetime.fromisoformat() and re-formats to a canonical
+    ISO 8601 string, which is injection-safe by construction.
     """
     if not dt_str:
         raise ValueError("Datetime string is empty")
-    
-    # Reject any quotes, OData syntax, or suspicious characters
-    dangerous_chars = ["'", '"', "or ", "and ", "ne ", "gt ", "lt ", "(", ")", ";"]
-    dt_lower = dt_str.lower()
-    for char in dangerous_chars:
-        if char in dt_lower:
-            raise ValueError(f"Invalid datetime format: contains '{char}'")
-    
-    # Validate ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or similar)
-    # Allow optional Z or ±HH:MM suffix for timezone
-    import re
-    if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})?$', dt_str):
-        raise ValueError("Datetime must be in ISO 8601 format")
-    
-    # Try to parse to catch invalid dates
+
     try:
-        from datetime import datetime as dt_class
-        dt_class.fromisoformat(dt_str.replace('Z', '+00:00'))
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        raise ValueError("Invalid datetime value")
-    
-    return dt_str
+        raise ValueError("Datetime must be in ISO 8601 format")
+
+    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _build_filter(params: Dict[str, str]) -> str:

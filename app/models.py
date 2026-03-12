@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class NameClaimRequest(BaseModel):
     """Schema describing the payload used to generate and claim a name."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     resource_type: str = Field(..., description="Azure resource type (e.g. storage_account).")
     region: str = Field(..., description="Azure region short code (e.g. wus2).")
@@ -69,7 +69,7 @@ class MessageResponse(BaseModel):
 
 
 class SlugLookupResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     resourceType: str = Field(..., description="Canonical resource type used for slug resolution.")
     slug: str = Field(..., description="Resolved short code for the resource type.")

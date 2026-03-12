@@ -45,7 +45,6 @@ def _normalise_openapi_spec(raw_json: str) -> str:
 @app.route(
     route="openapi.json",
     methods=[func.HttpMethod.GET],
-    auth_level=func.AuthLevel.ANONYMOUS,
 )
 def openapi_spec(req: func.HttpRequest) -> func.HttpResponse:
     """Serve the generated OpenAPI specification for the HTTP API."""
@@ -60,7 +59,7 @@ def openapi_spec(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.function_name(name="swagger_ui")
-@app.route(route="docs", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="docs", methods=[func.HttpMethod.GET])
 def swagger_ui(req: func.HttpRequest) -> func.HttpResponse:
     """Serve an interactive Swagger UI backed by the generated OpenAPI spec."""
 

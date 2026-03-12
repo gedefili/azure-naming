@@ -36,9 +36,21 @@ def _resolve_sequence(obj: object) -> List[SlugProvider]:
     return [_validate_provider(provider_obj)]
 
 
+_ALLOWED_SLUG_PROVIDERS = {
+    "adapters.slug.TableSlugProvider",
+    "adapters.slug_fetcher.SlugFetcher",
+}
+
+
 def _load_providers_from_env() -> Optional[List[SlugProvider]]:
     provider_path = os.environ.get("SLUG_PROVIDER")
     if not provider_path:
+        return None
+
+    if provider_path not in _ALLOWED_SLUG_PROVIDERS:
+        logger.error(
+            "SLUG_PROVIDER %r is not in the allowed list", provider_path
+        )
         return None
 
     try:
