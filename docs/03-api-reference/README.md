@@ -26,7 +26,7 @@ All endpoints require an `Authorization: Bearer <token>` header with a valid Ent
 
 **Token Acquisition:**
 - CLI/Testing → [Token Workflow](../04-development/token_workflow.md)
-- Setup → [App Registration Guide](../02-getting-started/app-registration.md)
+- Setup → [App Registration Guide](../02-getting-started/app-registration.md) for the current Terraform-managed Entra registration standard
 
 ## Data Models
 

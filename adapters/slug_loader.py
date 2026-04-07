@@ -50,7 +50,7 @@ def sync_slug_definitions(connection_string: Optional[str] = None) -> int:
             "RowKey": slug,
             "Slug": slug,
             "ResourceType": canonical_name,
-            "FullName": human_readable,
+            "FullName": canonical_name,
             "Source": "azure_defined_specs",
         }
         try:

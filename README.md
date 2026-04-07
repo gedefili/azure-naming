@@ -73,13 +73,15 @@ Tokens are validated server-side; no function keys are required.
 
 ---
 
-## 🚀 Deploying (Paused)
+## 🚀 Deployment Standard
 
-> Deployment to Azure is temporarily on hold while we focus on local workflows. Treat the checklist below as future-looking reference.
+The current production standard is a two-repository flow:
 
-* Provision Azure Storage + Function App (see [docs/05-operations/deployment.md](docs/05-operations/deployment.md))
-* Create Tables: `ClaimedNames`, `AuditLogs`, `SlugMappings`
-* Register app in Entra, assign roles
+* Provision infrastructure from `environs-iac` at `sanmar/applications/internal/azure-naming/service`
+* Let Terraform create the Function App, storage resources, monitoring resources, and the Entra API app registration
+* Publish this application repository to the provisioned Function App through the GitHub Actions deploy workflow
+
+See [docs/05-operations/deployment.md](docs/05-operations/deployment.md) for the current sequence and handoff points.
 
 ---
 
@@ -91,7 +93,7 @@ Quick navigation by topic:
 
 | Topic | Location |
 |-------|----------|
-| **Getting Started** | [docs/02-getting-started/](docs/02-getting-started/) — App registration, auth setup |
+| **Getting Started** | [docs/02-getting-started/](docs/02-getting-started/) — auth setup, token flow, testing client registration |
 | **API Reference** | [docs/03-api-reference/](docs/03-api-reference/) — Endpoint specs, data schemas |
 | **Local Development** | [docs/04-development/](docs/04-development/) — Setup, testing, architecture |
 | **Operations & Deployment** | [docs/05-operations/](docs/05-operations/) — Production deployment, security, cost |
@@ -102,7 +104,7 @@ Quick navigation by topic:
 - 📖 **[API Endpoints](docs/03-api-reference/usage.md)** — Complete endpoint reference with examples
 - 🛠️ **[Local Testing](docs/04-development/local-testing.md)** — How to run the service locally
 - 🔐 **[Authentication Guide](docs/02-getting-started/auth.md)** — Understanding roles and token validation
-- 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — Azure provisioning and configuration
+- 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — `environs-iac` provisioning and application publish flow
 - 🧩 **[Module Structure](docs/04-development/module-structure.md)** — Python package organization
 
 The architecture diagram above is rendered from [docs/04-development/architecture.mmd](docs/04-development/architecture.mmd).

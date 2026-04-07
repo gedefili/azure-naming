@@ -1,68 +1,74 @@
 # 🆔 App Registration Guide
 
-This runbook walks through registering the Azure Naming Function in Entra ID (Azure Active Directory) so that callers can request tokens and the service can enforce role-based access control. Complete these steps before attempting to obtain bearer tokens or configure branch protections.
+This runbook explains the current standard for Entra ID registration with the Azure Naming service. The API registration is now created by Terraform from the `environs-iac` repository, and this repository only needs the resulting IDs for token requests, local testing, and application deployment.
 
 ---
 
 ## Prerequisites
 
-- Entra ID tenant admin permissions (or delegated rights to create app registrations and roles).
-- The Azure Function already deployed (or a plan to deploy it) so you know which audience the tokens should target.
-- CLI access with `az` installed (optional but recommended for verification).
+- Access to the `environs-iac` repository deployment at `sanmar/applications/internal/azure-naming/service`.
+- Entra ID permissions sufficient for Terraform to create app registrations, service principals, and role assignments.
+- CLI access with `az` installed for verification and token testing.
 
 ---
 
-## 1. Register the API (Server) Application
+## 1. Provision the API Registration Through Terraform
 
-1. Sign in to the **Azure portal** → **Entra ID** → **App registrations** → **New registration**.
-2. Name the app (for example, `AzureNamingService`).
-3. Choose **Accounts in this organizational directory only** unless you need multi-tenant access.
-4. Leave the redirect URI blank (the Function relies on EasyAuth/JWT validation rather than direct redirects) and click **Register**.
+Run the Azure Naming service stack from `environs-iac`.
+
+The canonical Terraform root is:
+
+- `sanmar/applications/internal/azure-naming/service`
+
+During `terraform apply`, Terraform creates:
+
+- the Entra API application registration
+- the service principal
+- the delegated `user_access` scope
+- the `reader`, `contributor`, and `admin` app roles
+- the application secret defined by the stack inputs
+
+The Function App is provisioned in the same apply and is configured with the resulting `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` values.
 
 ### Capture IDs
 
-- **Application (client) ID** → set this as `AZURE_CLIENT_ID` in app configuration.
-- **Directory (tenant) ID** → set this as `AZURE_TENANT_ID`.
+- **Application (client) ID** → available from Terraform output `entra_app_client_id`
+- **Directory (tenant) ID** → available from Terraform output `entra_tenant_id`
+- **Application secret** → available from Terraform output `entra_app_client_secret` if your client flow needs it
 
 ---
 
-## 2. Define App Roles
+## 2. Review the Terraform-Managed Roles and Scope
 
-Professional deployments use App Roles to represent `reader`, `contributor`, and `admin` permissions.
+Terraform defines the application roles and delegated scope for the API registration. The expected values are:
 
-1. Inside the registration, open **App roles** → **Create app role**.
-2. Create the following roles (member type `Users/Groups`):
-   - Display name `Sanmar Naming Reader`, value `reader`.
-   - Display name `Sanmar Naming Contributor`, value `contributor`.
-   - Display name `Sanmar Naming Admin`, value `admin`.
-3. Save each role. Azure may take a minute to propagate the new roles.
+- `reader`
+- `contributor`
+- `admin`
+- delegated scope `user_access`
 
----
-
-## 3. Expose the API
-
-1. Navigate to **Expose an API**.
-2. If an Application ID URI is not set, click **Set**, then enter `api://<AZURE_CLIENT_ID>`.
-3. Under **Scopes defined by this API**, add a delegated scope (for example, `user_access`).
-   - Set **Who can consent?** to **Admins and users**.
-   - Provide a meaningful admin/user consent description.
-   - Enable the scope.
-4. Azure automatically enables the `.default` shorthand. Tokens requested for `api://<AZURE_CLIENT_ID>/.default` will contain any scopes and app roles assigned to the caller.
+You normally do not create these manually anymore. Verify them in the Azure portal only if troubleshooting is required.
 
 ---
 
-## 4. Assign Roles to Users or Groups
+## 3. Assign Roles to Users or Groups
 
-1. Go to **Enterprise applications** → search for the new API registration.
-2. Open **Users and groups** → **Add user/group**.
-3. Select the user(s) or group(s) and assign the appropriate role (`reader`, `contributor`, `admin`).
-4. Repeat for each audience segment.
+Terraform creates the registration, but role assignments to real users or groups still happen afterward:
+
+1. Go to **Enterprise applications**.
+2. Open the service principal created for the Azure Naming API.
+3. Open **Users and groups**.
+4. Assign the appropriate role (`reader`, `contributor`, `admin`) to each user or group.
+
+Azure automatically exposes the API using the application ID URI pattern `api://<AZURE_CLIENT_ID>`. Tokens requested for that resource can then contain the assigned roles and delegated scopes.
+
+---
 
 > ℹ️ The service also supports group-based enforcement via `AZURE_ROLE_GROUP_<ROLE>`. Set those environment variables to Entra group object IDs if you prefer to map roles indirectly.
 
 ---
 
-## 5. Optional: Register a Client Application for Testing
+## 4. Optional: Register a Client Application for Testing
 
 If you want a dedicated client that can request tokens without using the portal:
 
@@ -73,7 +79,7 @@ If you want a dedicated client that can request tokens without using the portal:
 
 ---
 
-## 6. Validate With the Azure CLI
+## 5. Validate With the Azure CLI
 
 Run the following commands from a login session to verify everything is wired correctly:
 
@@ -95,12 +101,12 @@ You are ready to call the API once the token helper prints the expected `roles` 
 
 ---
 
-## 7. Cloud Shell Automation (Optional)
+## 6. Legacy Cloud Shell Automation
 
-If you prefer to automate the registration from Azure Cloud Shell, the repository includes helper scripts:
+The repository still contains helper scripts for manual registration work, but they are no longer the standard path for the API registration because Terraform in `environs-iac` now owns that resource.
 
-- `tools/cloudshell/register_naming_api.sh` — Creates the API app registration, configures roles (`reader`, `contributor`, `admin`), adds the delegated scope, and provisions the service principal.
-- `tools/cloudshell/register_naming_client.sh` — Creates a public client app wired to the API scope so you can request tokens for testing.
+- `tools/cloudshell/register_naming_api.sh` — legacy helper for manual API app registration creation
+- `tools/cloudshell/register_naming_client.sh` — still useful for creating a testing client app
 
 Usage example from Cloud Shell:
 
@@ -109,15 +115,12 @@ git clone https://github.com/gedefili/azure-naming.git
 cd azure-naming
 
 chmod +x tools/cloudshell/*.sh
-./tools/cloudshell/register_naming_api.sh
-
-export AZURE_CLIENT_ID="<API_APP_ID_FROM_PREVIOUS_STEP>"
+export AZURE_CLIENT_ID="<API_APP_ID_FROM_TERRAFORM_OUTPUT>"
 ./tools/cloudshell/register_naming_client.sh
 ```
 
-Both scripts expect `az` and `jq` to be available (pre-installed in Cloud Shell). You can override defaults by setting environment variables before execution:
+The scripts expect `az` and `jq` to be available (pre-installed in Cloud Shell). You can override defaults by setting environment variables before execution:
 
-- `API_APP_NAME`, `SCOPE_NAME` for the API script.
 - `CLIENT_APP_NAME`, `REDIRECT_URI`, `SCOPE_VALUE`, `AZURE_CLIENT_ID` for the client script.
 
 ---

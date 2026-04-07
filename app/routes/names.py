@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import azure.functions as func
 from azure.core import MatchConditions
@@ -150,7 +150,7 @@ def release_name(req: func.HttpRequest) -> func.HttpResponse:
     
     entity["InUse"] = False
     entity["ReleasedBy"] = user_id
-    entity["ReleasedAt"] = datetime.utcnow().isoformat()
+    entity["ReleasedAt"] = datetime.now(tz=timezone.utc).isoformat()
     entity["ReleaseReason"] = reason
 
     try:

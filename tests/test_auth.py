@@ -127,6 +127,7 @@ class TestVerifyJwt:
     @mock.patch.object(auth, "PyJWKClient")
     def test_successful_verify(self, mock_cls, mock_decode, monkeypatch):
         monkeypatch.setattr(auth, "JWKS_URL", "https://login.microsoftonline.com/t/discovery/v2.0/keys")
+        monkeypatch.setattr(auth, "_jwk_client", None)  # Reset cached client
         mock_key = mock.MagicMock()
         mock_cls.return_value.get_signing_key_from_jwt.return_value = mock_key
         mock_decode.return_value = {"oid": "user-123", "roles": ["admin"]}

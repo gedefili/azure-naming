@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -39,7 +39,7 @@ def write_audit_log(
         "User": str(user).lower(),
         "Action": str(action).lower(),
         "Note": note,
-        "EventTime": datetime.utcnow(),
+        "EventTime": datetime.now(tz=timezone.utc),
     }
 
     if metadata:

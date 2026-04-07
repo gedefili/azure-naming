@@ -4,7 +4,7 @@ Guides for deployment, security, compliance, cost management, and release proced
 
 ## Documents
 
-- **[Deployment Checklist](deployment.md)** — Step-by-step Azure resource provisioning and configuration
+- **[Deployment Checklist](deployment.md)** — Current standard for `environs-iac` provisioning and code publish
 - **[Security & Compliance](SECURITY.md)** — Security model, encryption, compliance considerations
 - **[Security Audit Report](security-audit-2025-10-16.md)** — Professional third-party security assessment
 - **[Cost Estimation](cost-estimate.md)** — 10-year cost projection and optimization strategies
@@ -24,9 +24,9 @@ See: [Security & Compliance](SECURITY.md) and [Security Audit Report](security-a
 
 ### Deployment
 
-- Azure resource provisioning (Storage, Functions)
+- Azure resource provisioning from `environs-iac` and code publish from this repo
 - Configuration management
-- Environment setup (dev, staging, production)
+- Environment setup and handoff between IaC and application deployment
 - Database schema initialization
 
 See: [Deployment Checklist](deployment.md)

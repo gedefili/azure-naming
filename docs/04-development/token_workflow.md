@@ -62,6 +62,26 @@ Quick check:
 echo "token length: $(echo -n "$BEARER_TOKEN" | wc -c)"
 ```
 
+A2b. Save the token directly into your local `.env`
+
+If you already have a token:
+
+```bash
+python3 tools/save_access_token.py --token "$BEARER_TOKEN" --show-claims
+```
+
+If Azure CLI is available and your IDs are set:
+
+```bash
+export AZURE_TENANT_ID="<tenant-id>"
+export AZURE_CLIENT_ID="<api-app-id>"
+export TEST_CLIENT_ID="<public-client-id>"
+
+python3 tools/save_access_token.py --show-claims
+```
+
+This writes `FUNCTION_BASE_URL`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `TEST_CLIENT_ID`, and `ACCESS_TOKEN` into the local `.env` file.
+
 A3. Non-interactive (client credentials — requires app registration + secret)
 
 ```bash

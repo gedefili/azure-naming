@@ -5,6 +5,8 @@ All notable changes to the Azure Naming Function project will be documented in t
 
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
+> Current deployment standard: infrastructure for Azure Naming now lives in the `environs-iac` repository at `sanmar/applications/internal/azure-naming/service`. Historical entries below may still reference the original `deploy/` folder from this repository.
+
 
 ## [1.8.0] - 2026-03-12
 

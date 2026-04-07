@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
 import azure.functions as func
@@ -144,7 +144,7 @@ def _perform_slug_sync() -> Tuple[int, str]:
             entity = slug_table.get_entity(partition_key=partition_key, row_key=row_key)
             if entity.get("FullName") != full_name:
                 entity["FullName"] = full_name
-                entity["UpdatedAt"] = datetime.utcnow().isoformat()
+                entity["UpdatedAt"] = datetime.now(tz=timezone.utc).isoformat()
                 slug_table.update_entity(entity=entity, mode="Replace")
                 updated_count += 1
             else:
@@ -155,7 +155,7 @@ def _perform_slug_sync() -> Tuple[int, str]:
                 "RowKey": row_key,
                 "Slug": slug,
                 "FullName": full_name,
-                "UpdatedAt": datetime.utcnow().isoformat(),
+                "UpdatedAt": datetime.now(tz=timezone.utc).isoformat(),
             }
             slug_table.upsert_entity(entity=new_entity, mode=UpdateMode.MERGE)
             created_count += 1

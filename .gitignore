@@ -1,6 +1,10 @@
 coverage-summary.json
 __pycache__/
 *.pyc
+local.settings.json
+.env
+.env.*
+!.env.example
 
 # Local Azurite emulator artifacts
 .azurite/
