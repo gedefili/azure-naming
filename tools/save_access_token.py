@@ -24,27 +24,23 @@ DEFAULT_FUNCTION_BASE_URL = "https://wus2-prd-fn-aznaming.azurewebsites.net"
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Save an Azure Naming API token into a local .env file.")
-    parser.add_argument("--token", default=os.environ.get("ACCESS_TOKEN"), help="Existing bearer token to save.")
+    parser.add_argument("--token", help="Existing bearer token to save.")
     parser.add_argument(
         "--tenant-id",
-        default=os.environ.get("AZURE_TENANT_ID"),
         help="Entra tenant ID. Used for Azure CLI token requests and saved into the .env file.",
     )
     parser.add_argument(
         "--api-client-id",
-        default=os.environ.get("AZURE_CLIENT_ID"),
         help="API app registration client ID. Defaults to $AZURE_CLIENT_ID.",
     )
     parser.add_argument(
         "--test-client-id",
-        default=os.environ.get("TEST_CLIENT_ID"),
-        help="Public client app ID used to request the token. Defaults to $TEST_CLIENT_ID.",
+        help="Optional public client app ID to store in the .env file for non-Azure-CLI flows.",
     )
     parser.add_argument("--resource", help="Explicit resource identifier, usually api://<api-client-id>.")
     parser.add_argument("--scope", help="Optional scope to request instead of --resource.")
     parser.add_argument(
         "--function-base-url",
-        default=os.environ.get("FUNCTION_BASE_URL", DEFAULT_FUNCTION_BASE_URL),
         help="Function host URL to store alongside the token.",
     )
     parser.add_argument(
@@ -74,6 +70,17 @@ def _load_env(env_path: Path) -> tuple[list[str], dict[str, int]]:
     return lines, indexes
 
 
+def _read_env_values(env_path: Path) -> dict[str, str]:
+    lines, _ = _load_env(env_path)
+    values: dict[str, str] = {}
+    for line in lines:
+        if not line or line.lstrip().startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value
+    return values
+
+
 def _upsert_env_values(env_path: Path, values: dict[str, str]) -> None:
     lines, indexes = _load_env(env_path)
 
@@ -87,23 +94,26 @@ def _upsert_env_values(env_path: Path, values: dict[str, str]) -> None:
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _fetch_token_via_az(args: argparse.Namespace) -> tuple[str, str | None, str | None]:
-    if args.scope and args.resource:
+def _fetch_token_via_az(
+    *,
+    tenant_id: str | None,
+    api_client_id: str | None,
+    resource: str | None,
+    scope: str | None,
+) -> tuple[str, str | None, str | None]:
+    if scope and resource:
         raise RuntimeError("Specify either --scope or --resource, not both.")
 
-    resource = args.resource
-    if not resource and not args.scope:
-        if not args.api_client_id:
+    if not resource and not scope:
+        if not api_client_id:
             raise RuntimeError("Provide --api-client-id, --resource, or --scope when --token is omitted.")
-        resource = f"api://{args.api_client_id}"
+        resource = f"api://{api_client_id}"
 
     az_args: list[str] = ["account", "get-access-token"]
-    if args.tenant_id:
-        az_args.extend(["--tenant", args.tenant_id])
-    if args.test_client_id:
-        az_args.extend(["--client-id", args.test_client_id])
-    if args.scope:
-        az_args.extend(["--scope", args.scope])
+    if tenant_id:
+        az_args.extend(["--tenant", tenant_id])
+    if scope:
+        az_args.extend(["--scope", scope])
     elif resource:
         az_args.extend(["--resource", resource])
 
@@ -121,20 +131,35 @@ def main(argv: list[str] | None = None) -> int:
 
     env_path = Path(args.env_file).expanduser().resolve()
     env_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_values = _read_env_values(env_path)
 
-    token = args.token
-    tenant_id = args.tenant_id
+    function_base_url = (
+        args.function_base_url
+        or os.environ.get("FUNCTION_BASE_URL")
+        or existing_values.get("FUNCTION_BASE_URL")
+        or DEFAULT_FUNCTION_BASE_URL
+    )
+    tenant_id = args.tenant_id or os.environ.get("AZURE_TENANT_ID") or existing_values.get("AZURE_TENANT_ID")
+    api_client_id = args.api_client_id or os.environ.get("AZURE_CLIENT_ID") or existing_values.get("AZURE_CLIENT_ID")
+    test_client_id = args.test_client_id or os.environ.get("TEST_CLIENT_ID") or existing_values.get("TEST_CLIENT_ID")
+
+    token = args.token or os.environ.get("ACCESS_TOKEN")
     expires_on: str | None = None
 
     if not token:
-        token, tenant_id_from_az, expires_on = _fetch_token_via_az(args)
+        token, tenant_id_from_az, expires_on = _fetch_token_via_az(
+            tenant_id=tenant_id,
+            api_client_id=api_client_id,
+            resource=args.resource,
+            scope=args.scope,
+        )
         tenant_id = tenant_id or tenant_id_from_az
 
     values = {
-        "FUNCTION_BASE_URL": args.function_base_url,
+        "FUNCTION_BASE_URL": function_base_url,
         "AZURE_TENANT_ID": tenant_id or "",
-        "AZURE_CLIENT_ID": args.api_client_id or "",
-        "TEST_CLIENT_ID": args.test_client_id or "",
+        "AZURE_CLIENT_ID": api_client_id or "",
+        "TEST_CLIENT_ID": test_client_id or "",
         "ACCESS_TOKEN": token,
     }
     _upsert_env_values(env_path, values)
