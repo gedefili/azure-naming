@@ -75,12 +75,19 @@ If Azure CLI is available and your IDs are set:
 ```bash
 export AZURE_TENANT_ID="<tenant-id>"
 export AZURE_CLIENT_ID="<api-app-id>"
-export TEST_CLIENT_ID="<public-client-id>"
 
 python3 tools/save_access_token.py --show-claims
 ```
 
 This writes `FUNCTION_BASE_URL`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `TEST_CLIENT_ID`, and `ACCESS_TOKEN` into the local `.env` file.
+
+If you want to persist a testing client ID for other auth flows, pass it explicitly when saving or updating the env file:
+
+```bash
+python3 tools/save_access_token.py --token "$BEARER_TOKEN" --test-client-id "<public-client-id>"
+```
+
+Note: `tools/save_access_token.py` uses `az account get-access-token` for Azure CLI flows, and that command requests tokens as the signed-in Azure CLI client. It does not support overriding the client application with `TEST_CLIENT_ID`.
 
 A3. Non-interactive (client credentials — requires app registration + secret)
 
