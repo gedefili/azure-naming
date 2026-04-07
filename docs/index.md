@@ -3,7 +3,7 @@
 Welcome to the comprehensive documentation hub for the Azure Naming Function project. This index provides a complete roadmap to all guides, references, specifications, and operational procedures.
 
 **Quick Links:**
-- 🚀 [Getting Started](#-getting-started) — First-time setup and registration
+- 🚀 [Getting Started](#-getting-started) — First-time setup, Terraform-managed registration, and token flow
 - 📖 [API Reference](#-api-reference) — Endpoint specifications and data schemas
 - 🛠️ [Development](#-development) — Local testing, architecture, and internals
 - 🔧 [Operations](#-operations) — Deployment, security, monitoring
@@ -18,12 +18,12 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 
 | Document | Purpose |
 |----------|---------|
-| **[App Registration Guide](02-getting-started/app-registration.md)** | Step-by-step Entra ID setup and role configuration |
+| **[App Registration Guide](02-getting-started/app-registration.md)** | Current Entra standard: Terraform-managed API registration plus testing client setup |
 | **[Authentication & Authorization](02-getting-started/auth.md)** | Understanding token validation and role-based access |
 | **[Main README](../README.md)** | Project overview, architecture diagram, and high-level system design |
 
 ### What You'll Learn
-- ✅ How to register the service in Entra ID
+- ✅ How the service registration is created in `environs-iac`
 - ✅ How role-based access control (RBAC) works
 - ✅ Token flow and security model
 - ✅ System architecture and component interactions
@@ -82,7 +82,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 
 | Document | Purpose |
 |----------|---------|
-| **[Deployment Checklist](05-operations/deployment.md)** | Azure resource provisioning, configuration, and go-live steps |
+| **[Deployment Checklist](05-operations/deployment.md)** | `environs-iac` provisioning, code publish workflow, and go-live steps |
 | **[Security & Compliance](05-operations/SECURITY.md)** | Security model, encryption, and compliance considerations |
 | **[Security Audit Report](05-operations/security-audit-2025-10-16.md)** | Professional security assessment results |
 | **[Cost Estimation](05-operations/cost-estimate.md)** | 10-year cost projection and optimization strategies |
@@ -90,7 +90,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 | **[Release Process](05-operations/RELEASE.md)** | Version tagging, changelog management, and release workflow |
 
 ### Key Topics
-- ✅ Azure resource setup and configuration
+- ✅ Azure resource setup and configuration under the current two-repository standard
 - ✅ Security model and role-based access control
 - ✅ Encryption and compliance requirements
 - ✅ Cost analysis and optimization
@@ -152,14 +152,14 @@ docs/
 
 ---
 
-## � Finding What You Need
+## 🔎 Finding What You Need
 
 **I want to...**
 
 | Goal | Start Here |
 |------|-----------|
 | Get the service running locally | [Local Testing Setup](04-development/local-testing.md) |
-| Register the app in Entra ID | [App Registration Guide](02-getting-started/app-registration.md) |
+| Understand how the API registration is created | [App Registration Guide](02-getting-started/app-registration.md) |
 | Call the API endpoints | [Usage & Endpoints](03-api-reference/usage.md) → [Token Workflow](04-development/token_workflow.md) |
 | Understand the system architecture | [Architecture Deep Dive](04-development/architecture.mmd) + [Module Structure](04-development/module-structure.md) |
 | Deploy to production | [Deployment Checklist](05-operations/deployment.md) |
@@ -182,14 +182,14 @@ docs/
 
 ## 📈 Documentation Status
 
-All documentation is current as of October 29, 2025. Last updated during the code quality refactoring initiative (Phase 1 & 2 complete).
+Core deployment and registration guidance was updated on April 7, 2026 to reflect the move of infrastructure provisioning to `environs-iac`.
 
 | Section | Status | Last Updated |
 |---------|--------|--------------|
-| Getting Started | ✅ Current | October 29, 2025 |
+| Getting Started | ✅ Current | April 7, 2026 |
 | API Reference | ✅ Current | October 2025 |
 | Development | ✅ Current | October 29, 2025 |
-| Operations | ✅ Current | October 16, 2025 |
+| Operations | ✅ Current | April 7, 2026 |
 | Planning | ✅ Current | October 29, 2025 |
 | Refactoring | ✅ Complete | October 29, 2025 |
 

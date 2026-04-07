@@ -1,78 +1,81 @@
 # 🚀 Deployment Guide
 
-This guide walks through the deployment of the Azure Naming Function to Azure using Function Apps, Table Storage, and Entra ID authentication.
+This guide describes the current deployment standard for Azure Naming. Infrastructure is provisioned from `environs-iac`, and application code is published from this repository.
 
 ---
 
 ## ☁️ Prerequisites
 
+* Access to the `environs-iac` repository
 * Azure CLI installed and logged in
-* Python 3.10+ environment
-* `func` Azure Functions Core Tools installed
+* Python 3.11 environment
 * Access to Azure subscription and Entra ID
+* GitHub repository secrets or OIDC configuration for the deploy workflow
 
 ---
 
-## 🧱 Resources to Provision
+## 🧱 Standard Deployment Flow
 
-### Azure Resources
+### 1. Provision infrastructure from `environs-iac`
 
-* **Resource Group** (if not using existing):
+Use the Terraform stack at:
 
-  ```bash
-  az group create -n naming-fn-rg -l westus2
-  ```
-* **Storage Account** (for Function and Tables):
+* `sanmar/applications/internal/azure-naming/service`
 
-  ```bash
-  az storage account create -n namingstorage123 -g naming-fn-rg --sku Standard_LRS
-  ```
-* **Function App** (Python 3.10 + Linux):
+That stack provisions:
 
-  ```bash
-  az functionapp create -n naming-fn-app -g naming-fn-rg \
-    --storage-account namingstorage123 \
-    --consumption-plan-location westus2 \
-    --runtime python --runtime-version 3.10 --functions-version 4 \
-    --os-type Linux
-  ```
+* the resource group
+* the storage account and Azure Tables
+* Log Analytics and Application Insights
+* the Linux Function App and plan
+* the Entra API application registration, service principal, and secret
 
-### Azure Tables
+The stack also sets the Function App application settings needed by the service, including `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AzureWebJobsStorage`, and deployment build settings.
 
-Use Azure Storage Explorer or CLI to create the following tables in the same storage account:
+### 2. Capture deployment outputs
 
-* `ClaimedNames`
-* `AuditLogs`
-* `SlugMappings`
+The key outputs from Terraform are:
+
+* `function_app_name`
+* `function_app_default_hostname`
+* `entra_app_client_id`
+* `entra_tenant_id`
+* `entra_app_client_secret` when needed for client flows
+
+### 3. Configure the application publish path
+
+This repository publishes the Python application code through [deploy.yml](../../.github/workflows/deploy.yml).
+
+The workflow currently expects:
+
+* `AZURE_CREDENTIALS` for `azure/login`
+* `AZURE_FUNCTIONAPP_NAME` matching the Terraform output `function_app_name`
+
+### 4. Publish the application code
+
+The application code is deployed from this repository when the deploy workflow runs on pushes to `main`.
+
+The workflow:
+
+* checks out the code
+* installs dependencies
+* runs tests
+* logs into Azure
+* publishes the repository root to the provisioned Function App
 
 ---
-
-> ⚠️ **Deployment On Hold**
->
-> The team is focused on local validation and API design work. Treat the steps below as reference only; production deployment is paused until the project is ready for rollout.
 
 ## 🔐 Entra ID Configuration
 
-### App Registration
+The Entra API registration is created during the Terraform apply in `environs-iac`. After provisioning, the remaining manual step is to assign users or groups to the generated `reader`, `contributor`, and `admin` app roles.
 
-* Register a new app in Entra ID
-* Expose an API with scopes (e.g., `user_access`, `admin_access`)
-* Assign app roles: `reader`, `contributor`, `admin`
-* Add users/groups to roles using Enterprise Applications → Users and Groups
-
-### Set App Settings
-
-On the Function App:
-
-* `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`
-* `STORAGE_CONNECTION_STRING`
-* (Optional) GitHub URL override for slug sync
+For testing-client setup and token acquisition, see [docs/02-getting-started/app-registration.md](../02-getting-started/app-registration.md).
 
 ---
 
 ## 🔁 Slug Sync Timer
 
-The `slug_sync_timer` function runs weekly at **Sunday 4:00 AM UTC** to refresh the slug mappings from GitHub. This is defined via a `function.json` timer trigger.
+The `slug_sync_timer` function runs weekly at **Sunday 4:00 AM UTC** to refresh the slug mappings from GitHub.
 
 ---
 
@@ -89,8 +92,9 @@ Use tools like Postman or curl to hit endpoints using a valid Bearer token.
 
 ---
 
-## 🧪 Testing
+## 🧪 Post-Provision Verification
 
-* Ensure role-based access works with real Entra users
-* Test slug updates manually (`POST /api/slug_sync`)
-* Verify name claims and audits persist across restarts
+* Ensure the Function App exists and is reachable at the Terraform output hostname
+* Ensure role-based access works with real Entra users or groups
+* Test slug updates manually with `POST /api/slug_sync`
+* Verify name claims and audits persist in the provisioned storage tables

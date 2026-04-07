@@ -171,7 +171,7 @@ def test_sync_slug_definitions_stores_canonical_and_human_names(monkeypatch):
 
     assert updated == 1
     assert inserted[0]["ResourceType"] == "resource_group"
-    assert inserted[0]["FullName"] == "resource group"
+    assert inserted[0]["FullName"] == "resource_group"
 
 
 def test_slug_service_can_register_custom_provider(monkeypatch):

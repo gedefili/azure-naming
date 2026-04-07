@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
@@ -113,7 +113,7 @@ def claim_name(
         "InUse": True,
         "ResourceType": resource_type,
         "ClaimedBy": claimed_by,
-        "ClaimedAt": datetime.utcnow().isoformat(),
+        "ClaimedAt": datetime.now(tz=timezone.utc).isoformat(),
     }
 
     if metadata:

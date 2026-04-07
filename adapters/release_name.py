@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     from azure.core.exceptions import ResourceNotFoundError
@@ -19,7 +19,7 @@ def release_name(region: str, environment: str, name: str, released_by: str) -> 
     """Mark a claimed name as released in Azure Table Storage."""
 
     table = get_table_client(NAME_TABLE)
-    partition_key = f"{region}_{environment}"
+    partition_key = f"{region.lower()}-{environment.lower()}"
     row_key = name
 
     try:
@@ -29,6 +29,6 @@ def release_name(region: str, environment: str, name: str, released_by: str) -> 
 
     entity["InUse"] = False
     entity["ReleasedBy"] = released_by
-    entity["ReleasedOn"] = datetime.utcnow().isoformat()
+    entity["ReleasedOn"] = datetime.now(tz=timezone.utc).isoformat()
     table.update_entity(entity, mode="MERGE")
     return True

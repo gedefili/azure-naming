@@ -1,15 +1,15 @@
 # 🚀 Getting Started
 
-Quick-start guides for new users setting up the Azure Naming Function for the first time.
+Quick-start guides for new users setting up the Azure Naming Function for the first time under the current deployment standard.
 
 ## Documents
 
-- **[App Registration Guide](app-registration.md)** — Step-by-step Entra ID setup for the Azure Naming Function
+- **[App Registration Guide](app-registration.md)** — Terraform-managed Entra registration and testing client setup
 - **[Authentication & Authorization](auth.md)** — Understanding token validation, roles, and access control
 
 ## Getting Your First Token
 
-1. **Register the app** → Follow [App Registration Guide](app-registration.md)
+1. **Provision the API registration via IaC** → Follow [App Registration Guide](app-registration.md)
 2. **Understand auth** → Review [Authentication & Authorization](auth.md)
 3. **Get a token** → See [Token Workflow](../04-development/token_workflow.md)
 4. **Test an endpoint** → Check [Usage & Endpoints](../03-api-reference/usage.md)
