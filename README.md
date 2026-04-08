@@ -32,6 +32,7 @@ graph TD
 | `adapters/`        | Integrations for storage, slug fetching, audit logs, and release tooling   |
 | `app/`             | HTTP routes, request/response models, dependency wiring                    |
 | `docs/`            | Project documentation                                                     |
+| `.devcontainer/`   | Reproducible local development environment for VS Code Dev Containers     |
 
 ---
 
@@ -106,6 +107,8 @@ Quick navigation by topic:
 - 🔐 **[Authentication Guide](docs/02-getting-started/auth.md)** — Understanding roles and token validation
 - 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — `environs-iac` provisioning and application publish flow
 - 🧩 **[Module Structure](docs/04-development/module-structure.md)** — Python package organization
+
+For local development, the preferred path is now reopening the repository in the included VS Code dev container. It bundles Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite so the existing `dev:start-local-stack` task and debug configuration work without extra host setup. This container is for local development only; Azure deployment remains the current source-publish Function App workflow documented in [docs/05-operations/deployment.md](docs/05-operations/deployment.md).
 
 The architecture diagram above is rendered from [docs/04-development/architecture.mmd](docs/04-development/architecture.mmd).
 

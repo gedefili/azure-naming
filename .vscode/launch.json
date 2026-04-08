@@ -23,9 +23,17 @@
       "request": "attach",
       "connect": {
         "host": "localhost",
-        "port": 9091
+        "port": 5678
       },
-      "preLaunchTask": "func: host start"
+      "justMyCode": false,
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "."
+        }
+      ],
+      "preLaunchTask": "dev:start-local-stack",
+      "postDebugTask": "terminate-local-stack"
     }
   ]
 }

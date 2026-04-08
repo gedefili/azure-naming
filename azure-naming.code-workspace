@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "name": "📛 azure-naming",
+      "path": "."
+    },
+    {
+      "name": "🤖 agents-infra",
+      "path": "../agents-infra"
+    }
+  ],
+  "settings": {
+    "chat.mcp.discovery.enabled": {
+      "claude-desktop": true,
+      "windsurf": true,
+      "cursor-global": true,
+      "cursor-workspace": true
+    },
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+    "chat.useAgentsMdFile": true,
+    "chat.useNestedAgentsMdFiles": true,
+    "chat.instructionsFilesLocations": [
+      "../agents-infra/.github/copilot-instructions.md",
+      "../agents-infra/AGENTS.md"
+    ],
+    "github.copilot.chat.commitMessageGeneration.instructions": [
+      {
+        "file": "../agents-infra/.github/commit-instructions.md"
+      }
+    ],
+    "github.copilot.chat.reviewSelection.instructions": [
+      {
+        "file": "../agents-infra/.github/code-review-instructions.md"
+      }
+    ],
+    "search.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.python_packages": true
+    },
+    "files.watcherExclude": {
+      "**/.git/**": true,
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/.venv/**": true
+    }
+  }
+}

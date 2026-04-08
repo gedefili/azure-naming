@@ -11,8 +11,21 @@ These instructions walk you through running the Azure Naming Function locally an
 | Python 3.10+ | Matches the Functions worker runtime. |
 | Node.js 18+ / npm | Required to install the Azure Functions Core Tools via npm on Linux/WSL. |
 | [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) | Provides the `func` CLI for local runs. Install with `npm install -g azure-functions-core-tools@4 --unsafe-perm true` on Linux/WSL. |
-| [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) | Emulates Azure Table Storage locally. Install via npm (`npm install -g azurite`) or Docker. |
+| [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) | Emulates Azure Table Storage locally. Install via npm (`npm install -g azurite`) or run it via Podman or Docker. |
 | Optional: [Postman](https://www.postman.com/downloads/) | Used for manual API testing. |
+
+### Recommended: use the dev container
+
+The repository now includes a `.devcontainer/` setup that installs Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite inside the development environment. This is the preferred path if your workstation uses Podman and you want a repeatable setup instead of managing host-level tooling.
+
+This dev container is for local Azure Functions development only. The production Azure deployment path remains source publish to the provisioned Function App rather than deploying this project as a custom runtime container.
+
+1. Install the VS Code Dev Containers extension if it is not already available.
+2. Configure VS Code to use Podman as its container engine.
+3. Run **Dev Containers: Reopen in Container** from the Command Palette.
+4. Let the post-create step build `.venv` and install `requirements.txt`.
+
+Once the container is ready, use the existing **Attach to Local Azure Functions** launch configuration. The bootstrap script will find `azurite` directly inside the container, so no nested container runtime is required for normal startup.
 
 ### Install Azure Functions Core Tools (WSL/Linux)
 
@@ -30,7 +43,7 @@ func --version
 
 If the command is still not found, open a new terminal so your updated `PATH` is picked up or ensure your npm global bin directory is exported (usually `~/.npm-global/bin` on WSL).
 
-> 💡 If you prefer Docker, you can run `docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite` to launch Azurite quickly.
+> 💡 If you prefer a containerized Azurite outside the dev container, you can run `podman run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite` or the equivalent `docker run` command.
 
 ---
 
@@ -121,7 +134,7 @@ If you use VS Code, the repository includes a helper script (`tools/start_local_
 1. Select **Attach to Local Azure Functions** from the Run & Debug panel and press **F5**.  
 2. The pre-launch task will:
   - ensure `.venv` is active for the session,
-  - start Azurite (CLI or Docker fallback),
+  - start Azurite (CLI or Podman/Docker fallback),
   - launch `func start` with `debugpy` listening on port `5678`, and
   - print the Swagger UI URL (`http://localhost:7071/api/docs`) once the host is ready.
 3. VS Code attaches to the waiting debug session once the Functions worker is ready.
@@ -138,7 +151,7 @@ Stop debugging (or press `Ctrl+C` in the terminal) to tear everything down.
 
 | Component | How it runs | Ports | Files & directories | Notes |
 | --- | --- | --- | --- | --- |
-| Azurite (storage emulator) | `azurite` CLI if available, otherwise `docker run mcr.microsoft.com/azure-storage/azurite` | `10000` (Blob), `10001` (Queue), `10002` (Table) | `./.azurite/` for persistent data and `./.azurite/debug.log` for CLI debug output | Removed when the Azurite process stops; Docker mode runs ephemeral containers with `--rm`. |
+| Azurite (storage emulator) | `azurite` CLI if available, otherwise `podman run mcr.microsoft.com/azure-storage/azurite` or `docker run ...` | `10000` (Blob), `10001` (Queue), `10002` (Table) | `./.azurite/` for persistent data and `./.azurite/debug.log` for CLI debug output | Removed when the Azurite process stops; container mode runs ephemeral containers with `--rm`. |
 | Azure Functions host | `func start --verbose` | `7071` HTTP listener | none | Spawns the Python worker and gRPC channels under the hood. |
 | Python worker + debugger | `debugpy` adapter spawned by Core Tools | `5678` | none | Allows VS Code to attach. Terminates automatically when the worker exits. |
 | Swagger URL hint | Printed to terminal | n/a | none | Copy/paste `http://localhost:7071/api/docs` into your browser when ready. |
@@ -273,7 +286,7 @@ pytest
 ## 8. Cleaning Up
 
 * Stop the Functions host with `Ctrl+C`.
-* Stop Azurite (or the Docker container) when you are done.
+* Stop Azurite (or the Podman/Docker container) when you are done.
 * Deactivate the Python virtual environment with `deactivate`.
 
 ---

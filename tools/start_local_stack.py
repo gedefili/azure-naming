@@ -124,8 +124,18 @@ def ensure_port_free(host: str, port: int) -> None:
                     raise RuntimeError(f"Port {host}:{port} is still in use after cleanup attempt.") from retry_exc
 
 
+def resolve_container_runtime() -> str | None:
+    """Return the preferred container runtime for local Azurite fallback."""
+
+    for runtime in ("podman", "docker"):
+        if shutil.which(runtime):
+            return runtime
+
+    return None
+
+
 def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | None = None) -> None:
-    """Launch Azurite via CLI or Docker depending on availability."""
+    """Launch Azurite via CLI or a local container runtime depending on availability."""
 
     if use_docker is None:
         azurite_cli_available = shutil.which("azurite") is not None
@@ -147,14 +157,15 @@ def start_azurite(root: Path, manager: ProcessManager, *, use_docker: bool | Non
             str(log_dir / "debug.log"),
         ]
     else:
-        logger.info("Starting Azurite via Docker...")
-        if shutil.which("docker") is None:
-            logger.error("Docker not found on PATH")
+        container_runtime = resolve_container_runtime()
+        if container_runtime is None:
+            logger.error("No supported container runtime found on PATH")
             raise RuntimeError(
-                "Azurite CLI not found and Docker is unavailable. Install either azurite CLI or Docker."
+                "Azurite CLI not found and no supported container runtime is available. Install azurite, Podman, or Docker."
             )
+        logger.info(f"Starting Azurite via {container_runtime}...")
         cmd = [
-            "docker",
+            container_runtime,
             "run",
             "--rm",
             "-p",

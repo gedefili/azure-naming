@@ -88,6 +88,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 | **[Cost Estimation](05-operations/cost-estimate.md)** | 10-year cost projection and optimization strategies |
 | **[Professional Standards Review](05-operations/professional-standards-review-2025-10-16.md)** | Code quality and best practices assessment |
 | **[Release Process](05-operations/RELEASE.md)** | Version tagging, changelog management, and release workflow |
+| **[Dev Container Progress Report](reports/DEVCONTAINER_PROGRESS_REPORT_2026-04-08.md)** | Summary of local environment hardening, validation results, and next actions |
 
 ### Key Topics
 - ✅ Azure resource setup and configuration under the current two-repository standard
@@ -147,6 +148,7 @@ docs/
 ├── 04-development/           Local testing, architecture, Postman
 ├── 05-operations/            Deployment, security, cost, release process
 ├── 06-refactoring/           Code quality initiative documentation
+├── reports/                  Session reports and implementation summaries
 └── index.md                  This master index
 ```
 

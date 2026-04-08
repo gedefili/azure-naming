@@ -1,6 +1,6 @@
 # 🚀 Deployment Guide
 
-This guide describes the current deployment standard for Azure Naming. Infrastructure is provisioned from `environs-iac`, and application code is published from this repository.
+This guide describes the current deployment standard for Azure Naming. Infrastructure is provisioned from `environs-iac`, and application code is published from this repository. Containers are used here for local development only through the VS Code dev container workflow.
 
 ---
 
@@ -15,6 +15,8 @@ This guide describes the current deployment standard for Azure Naming. Infrastru
 ---
 
 ## 🧱 Standard Deployment Flow
+
+Azure Naming is currently deployed by publishing application source to a provisioned Azure Function App. That remains the intended Azure deployment model.
 
 ### 1. Provision infrastructure from `environs-iac`
 
@@ -62,6 +64,12 @@ The workflow:
 * runs tests
 * logs into Azure
 * publishes the repository root to the provisioned Function App
+
+### Local container usage
+
+The repository does include a VS Code dev container, but that is intended only to standardize local Azure Functions development. It is not the production deployment artifact for the service.
+
+For local setup and debugging in the dev container, see [../04-development/local-testing.md](../04-development/local-testing.md).
 
 ---
 
