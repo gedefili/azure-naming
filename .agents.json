@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "platform_version": "3.4.0",
+  "repo": "azure-naming",
+  "root": "/home/vscode/workspaces/azure-naming",
+  "description": "Azure Naming Function — secure, auditable Azure resource naming service",
+
+  "allowed_paths": [
+    "/home/vscode/workspaces/azure-naming",
+    "/home/vscode/workspaces/agents-infra"
+  ],
+
+  "allowed_capabilities": [
+    "file_read", "file_write",
+    "git_read", "git_write",
+    "process_exec"
+  ],
+
+  "agents": {
+    "enabled": [
+      "gitops-agent",
+      "docs-agent",
+      "security-agent",
+      "maintenance-agent"
+    ],
+    "disabled": [
+      "scaffold-agent",
+      "iteration-agent",
+      "builder-agent",
+      "drift-agent",
+      "tfx-agent"
+    ],
+    "features": {
+      "python_analysis": true
+    }
+  },
+
+  "gitops-agent": {
+    "settings": {
+      "commit_scopes": ["api", "core", "adapters", "app", "docs", "ci", "tests", "tools", "deploy"]
+    }
+  },
+
+  "docs-agent": {
+    "settings": {
+      "root": "docs"
+    }
+  }
+}
