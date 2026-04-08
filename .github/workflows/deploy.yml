@@ -24,7 +24,7 @@ jobs:
         run: pytest -q
       - name: Prepare deployment package
         run: |
-          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          pip install --target=".python_packages/lib/site-packages" --implementation cp --platform manylinux2014_x86_64 --only-binary=:all: -r requirements.txt
       - name: Login to Azure
         uses: azure/login@v2
         with:
