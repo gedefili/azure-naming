@@ -108,7 +108,7 @@ Quick navigation by topic:
 - 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — `environs-iac` provisioning and application publish flow
 - 🧩 **[Module Structure](docs/04-development/module-structure.md)** — Python package organization
 
-For local development, the preferred path is now reopening the repository in the included VS Code dev container. It bundles Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite so the existing `dev:start-local-stack` task and debug configuration work without extra host setup. This container is for local development only; Azure deployment remains the current source-publish Function App workflow documented in [docs/05-operations/deployment.md](docs/05-operations/deployment.md).
+For local development, the preferred path is now reopening the repository in the included VS Code dev container. It bundles Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite so the existing `dev:start-local-stack` task and debug configuration work without extra host setup. The same image definition is also published to the SanMar registry as `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:<version>` by the dev container publish workflow. Azure deployment for the service itself remains the current source-publish Function App workflow documented in [docs/05-operations/deployment.md](docs/05-operations/deployment.md).
 
 The architecture diagram above is rendered from [docs/04-development/architecture.mmd](docs/04-development/architecture.mmd).
 

@@ -1,6 +1,6 @@
 # 🚀 Deployment Guide
 
-This guide describes the current deployment standard for Azure Naming. Infrastructure is provisioned from `environs-iac`, and application code is published from this repository. Containers are used here for local development only through the VS Code dev container workflow.
+This guide describes the current deployment standard for Azure Naming. Infrastructure is provisioned from `environs-iac`, and application code is published from this repository. The repository also publishes its VS Code dev container image to Azure Container Registry for reusable development environments.
 
 ---
 
@@ -65,9 +65,28 @@ The workflow:
 * logs into Azure
 * publishes the repository root to the provisioned Function App
 
+### 5. Publish the dev container image
+
+The repository now publishes the dev container image with [devcontainer-publish.yml](../../.github/workflows/devcontainer-publish.yml).
+
+Target registry settings:
+
+* subscription: `a889bd72-26dd-49eb-8b8b-e874846ad155`
+* resource group: `wus2-prd-rg-iac-registry`
+* registry: `wus2prdcrsanmariac`
+* repository path: `iac/naming/azure:<version>`
+
+The workflow behavior is:
+
+* pushes to `main` publish `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:latest`
+* git tags like `v1.2.3` publish `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:1.2.3`
+* manual runs can publish any explicit `version` value
+
+The workflow uses Azure Container Registry build tasks, so GitHub Actions only needs Azure login permissions and does not need a local Docker daemon.
+
 ### Local container usage
 
-The repository does include a VS Code dev container, but that is intended only to standardize local Azure Functions development. It is not the production deployment artifact for the service.
+The repository does include a VS Code dev container to standardize local Azure Functions development. The published ACR image is the same development environment packaged for reuse, but it is still not the production deployment artifact for the service.
 
 For local setup and debugging in the dev container, see [../04-development/local-testing.md](../04-development/local-testing.md).
 

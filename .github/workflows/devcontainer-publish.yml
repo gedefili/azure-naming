@@ -1,0 +1,87 @@
+name: Publish Dev Container
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image version tag to publish'
+        required: false
+        type: string
+
+env:
+  AZURE_SUBSCRIPTION_ID: a889bd72-26dd-49eb-8b8b-e874846ad155
+  AZURE_RESOURCE_GROUP: wus2-prd-rg-iac-registry
+  ACR_NAME: wus2prdcrsanmariac
+  IMAGE_REPOSITORY: iac/naming/azure
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve image version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${{ inputs.version || '' }}" ]]; then
+            image_version="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            image_version="${GITHUB_REF_NAME#v}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            image_version="latest"
+          else
+            image_version="sha-${GITHUB_SHA::12}"
+          fi
+
+          echo "image_version=${image_version}" >> "${GITHUB_OUTPUT}"
+          echo "image_name=${ACR_NAME}.azurecr.io/${IMAGE_REPOSITORY}:${image_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Select target subscription
+        shell: bash
+        run: az account set --subscription "${AZURE_SUBSCRIPTION_ID}"
+
+      - name: Verify Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr show \
+            --name "${ACR_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --subscription "${AZURE_SUBSCRIPTION_ID}" \
+            --query loginServer \
+            --output tsv
+
+      - name: Build and push dev container image
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr build \
+            --registry "${ACR_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --image "${IMAGE_REPOSITORY}:${{ steps.version.outputs.image_version }}" \
+            --file .devcontainer/Dockerfile \
+            --build-arg IMAGE_VERSION="${{ steps.version.outputs.image_version }}" \
+            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            .
+
+      - name: Report published image
+        shell: bash
+        run: |
+          echo "Published ${{ steps.version.outputs.image_name }}"
