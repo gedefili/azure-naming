@@ -86,6 +86,28 @@ The workflow uses Azure Container Registry build tasks, so GitHub Actions only n
 
 Use a dedicated GitHub Actions secret named `AZURE_ACR_CREDENTIALS` for this workflow. Do not reuse `AZURE_CREDENTIALS`, because that secret is also used by the Function App deployment workflow and may point at a different subscription.
 
+Verified secret payload shape for `AZURE_ACR_CREDENTIALS`:
+
+```json
+{
+	"clientId": "<service-principal-app-id>",
+	"clientSecret": "<service-principal-password>",
+	"subscriptionId": "a889bd72-26dd-49eb-8b8b-e874846ad155",
+	"tenantId": "<entra-tenant-id>"
+}
+```
+
+Notes:
+
+* all values are strings
+* the service principal must be able to select subscription `a889bd72-26dd-49eb-8b8b-e874846ad155`
+* the service principal must have enough access to read `wus2prdcrsanmariac` and run `az acr build` against it
+* a registry-scoped or resource-group-scoped role assignment is sufficient for this workflow; it does not need Function App deployment permissions
+
+Verification reference:
+
+* successful manual publish of `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:0.1.0`: `https://github.com/gedefili/azure-naming/actions/runs/24159607753`
+
 ### Local container usage
 
 The repository does include a VS Code dev container to standardize local Azure Functions development. The published ACR image is the same development environment packaged for reuse, but it is still not the production deployment artifact for the service.
