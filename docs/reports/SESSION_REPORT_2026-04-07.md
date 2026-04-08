@@ -126,12 +126,70 @@ Both were set via `gh secret set` on repo `gedefili/azure-naming`.
 
 ---
 
-## Part 4: Remaining Steps
+## Part 4: Deployment — Issues Found and Resolved
 
-1. **Trigger the first deployment** — either push a commit to `main` or manually dispatch the `deploy.yml` workflow from the GitHub Actions UI.
-2. **Verify the deployed endpoints** — once deployed, test with:
-   ```bash
-   export TOKEN="$(az account get-access-token --scope api://520a3d65-7b9a-4a1f-a399-caa56df4c68d/.default --query accessToken -o tsv)"
-   curl -H "Authorization: Bearer $TOKEN" "https://wus2-prd-fn-aznaming.azurewebsites.net/api/slug?resource_type=storage_account"
-   ```
-3. **Consider rotating the deploy SP secret** periodically and migrating to OIDC federated credentials (`azure/login` supports this) to eliminate stored secrets entirely.
+### Deploy Attempt 1 — Functions return 404
+
+**Symptom:** All endpoints returned HTTP 404 despite the default landing page loading.
+
+**Root cause 1 — Missing `AzureWebJobsFeatureFlags`:**
+The Python v2 programming model requires `AzureWebJobsFeatureFlags=EnableWorkerIndexing` to tell the host to delegate function discovery to the Python worker. This was not set.
+
+**Root cause 2 — Extension bundle too old:**
+`host.json` specified extension bundle `[2.*, 3.0.0)`. The v2 Python model requires bundle v3 or v4.
+
+**Fix:** Updated `host.json` to `[4.*, 5.0.0)` and added the app setting.
+
+### Deploy Attempt 2 — Still 404
+
+**Root cause 3 — Dependencies not bundled:**
+The GitHub Actions workflow installed dependencies into the system Python but shipped the zip without them. On Linux Consumption without remote build, the zip must contain `.python_packages/lib/site-packages/`.
+
+**Fix:** Added a `pip install --target=".python_packages/lib/site-packages"` step to the workflow.
+
+### Deploy Attempt 3 — 401 Unauthorized
+
+**Root cause 4 — GLIBC compatibility:**
+The `cryptography` package compiled on Ubuntu 24.04 (GLIBC 2.39) failed to load on the Azure Functions host (GLIBC < 2.33):
+```
+ImportError: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.33' not found
+(required by cryptography/hazmat/bindings/_rust.abi3.so)
+```
+
+**Fix:** Changed pip install to use `--platform manylinux2014_x86_64 --only-binary=:all:` to pull pre-built wheels compatible with the Azure Functions host OS.
+
+### Deploy Attempt 4 — Success!
+
+After the platform fix, all 11 functions registered and the app became functional. However, `AuthLevel.FUNCTION` requires a function key (`?code=...`) in addition to the bearer token.
+
+### App Settings Added
+
+| Setting | Value |
+|---------|-------|
+| `AzureWebJobsFeatureFlags` | `EnableWorkerIndexing` |
+| `SANMAR_SLUGS_CONNECTION` | Same connection string as `AzureWebJobsStorage` |
+
+---
+
+## Part 5: Live Endpoint Test Results
+
+All tests performed against `https://wus2-prd-fn-aznaming.azurewebsites.net` with bearer token + function key.
+
+| Endpoint | Method | HTTP Status | Result |
+|----------|--------|-------------|--------|
+| `/api/slug?resource_type=storage_account` | GET | 200 | `{"slug": "st"}` |
+| `/api/slug?resource_type=key_vault` | GET | 200 | `{"slug": "kv"}` |
+| `/api/openapi.json` | GET | 200 | Full 28KB OpenAPI 3.0 spec |
+| `/api/docs` | GET | 200 | Swagger UI HTML |
+| `/api/rules` | GET | 200 | `{"resourceTypes": ["default", "key_vault", "storage_account"]}` |
+| `/api/slug_sync` | POST | 200 | `86 existing slugs` |
+| `/api/claim` | POST | 200 | Generated name `wus2devstsanmarntest` |
+
+---
+
+## Part 6: Remaining Items
+
+1. **Integration tests workflow** — Fails at "Initialize containers" (Docker/Azurite service container issue). Pre-existing; unrelated to this deploy.
+2. **CodeQL workflow** — Fails at "Perform CodeQL Analysis". Pre-existing.
+3. **Function key requirement** — `AuthLevel.FUNCTION` means callers need a function key (`?code=...`). Consider switching to `AuthLevel.ANONYMOUS` if you want bearer-token-only auth (the app implements its own JWT RBAC via `require_role()`), or configure Azure EasyAuth on the Function App to remove the `?code=` requirement.
+4. **Store function key as GitHub secret** — If keeping `FUNCTION` auth level, add the function key to secrets for CI/Postman workflows.
