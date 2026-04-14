@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -112,21 +113,21 @@ func (r *ClaimResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"resource_type": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Azure resource type identifier used for slug resolution.",
-				Validators: []schema.AttributeValidator{
+				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
 			},
 			"region": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Azure region short code (for example, wus2).",
-				Validators: []schema.AttributeValidator{
+				Validators: []validator.String{
 					stringvalidator.LengthBetween(2, 8),
 				},
 			},
 			"environment": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Deployment environment such as dev, stg, or prd.",
-				Validators: []schema.AttributeValidator{
+				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(2),
 				},
 			},
