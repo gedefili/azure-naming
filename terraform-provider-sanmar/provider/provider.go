@@ -38,8 +38,8 @@ type sanmarProviderModel struct {
 }
 
 // Metadata sets the provider type name.
-func (p *SanmarProvider) Metadata(_ context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = req.TypeName
+func (p *SanmarProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "sanmar"
 	resp.Version = p.version
 }
 
