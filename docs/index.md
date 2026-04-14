@@ -83,6 +83,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 | Document | Purpose |
 |----------|---------|
 | **[Deployment Checklist](05-operations/deployment.md)** | `environs-iac` provisioning, code publish workflow, and go-live steps |
+| **[Operator Cutover Plan](05-operations/operator-cutover-plan.md)** | Operator-owned Azure DevOps enforcement and retired GitHub shutdown steps |
 | **[Security & Compliance](05-operations/SECURITY.md)** | Security model, encryption, and compliance considerations |
 | **[Security Audit Report](05-operations/security-audit-2025-10-16.md)** | Professional security assessment results |
 | **[Cost Estimation](05-operations/cost-estimate.md)** | 10-year cost projection and optimization strategies |
