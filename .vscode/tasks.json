@@ -83,10 +83,10 @@
       "label": "terminate-local-stack",
       "type": "shell",
       "linux": {
-        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite'"
+        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite' || true"
       },
       "osx": {
-        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite'"
+        "command": "pkill -f 'python.*start_local_stack.py|func host start|azurite' || true"
       },
       "windows": {
         "command": "taskkill /F /IM python.exe /T 2>nul; taskkill /F /IM node.exe /T 2>nul; exit /b 0"
