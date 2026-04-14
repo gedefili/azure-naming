@@ -34,3 +34,57 @@ jobs:
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
           package: '.'
+
+      - name: Trigger post-deploy slug sync
+        env:
+          AZURE_FUNCTIONAPP_NAME: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+        run: |
+          resource_group=$(az resource list --name "$AZURE_FUNCTIONAPP_NAME" --resource-type "Microsoft.Web/sites" --query "[0].resourceGroup" -o tsv)
+          if [ -z "$resource_group" ]; then
+            echo "Unable to resolve resource group for $AZURE_FUNCTIONAPP_NAME" >&2
+            exit 1
+          fi
+
+          default_hostname=$(az resource show --resource-group "$resource_group" --resource-type "Microsoft.Web/sites" --name "$AZURE_FUNCTIONAPP_NAME" --query "properties.defaultHostName" -o tsv)
+          api_client_id=$(az functionapp config appsettings list --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$resource_group" --query "[?name=='AZURE_CLIENT_ID'].value | [0]" -o tsv)
+
+          if [ -z "$default_hostname" ] || [ -z "$api_client_id" ]; then
+            echo "Missing hostname or AZURE_CLIENT_ID for $AZURE_FUNCTIONAPP_NAME" >&2
+            exit 1
+          fi
+
+          access_token=$(az account get-access-token --scope "api://$api_client_id/.default" --query accessToken -o tsv)
+          if [ -z "$access_token" ]; then
+            echo "Unable to acquire bearer token for slug sync" >&2
+            exit 1
+          fi
+
+          slug_sync_url="https://$default_hostname/api/slug_sync"
+          max_attempts=5
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Attempt $attempt/$max_attempts: triggering slug sync"
+            response_file=$(mktemp)
+            status_code=$(curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
+              -X POST "$slug_sync_url" \
+              -H "Authorization: Bearer $access_token" \
+              -H "Content-Type: application/json" \
+              -d '{}')
+            response_body=$(cat "$response_file")
+            rm -f "$response_file"
+
+            if [ "$status_code" = "200" ]; then
+              echo "Slug sync succeeded: $response_body"
+              exit 0
+            fi
+
+            echo "Slug sync failed with HTTP $status_code: $response_body" >&2
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep 15
+            fi
+            attempt=$((attempt + 1))
+          done
+
+          echo "Slug sync did not succeed after $max_attempts attempts." >&2
+          exit 1
