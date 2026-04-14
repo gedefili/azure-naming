@@ -16,3 +16,7 @@ npm --version
 az version
 func --version
 azurite --version
+go version
+oras version
+gh --version
+jq --version
