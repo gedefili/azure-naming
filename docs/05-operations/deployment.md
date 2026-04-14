@@ -53,6 +53,11 @@ The workflow currently expects:
 * `AZURE_CREDENTIALS` for `azure/login`
 * `AZURE_FUNCTIONAPP_NAME` matching the Terraform output `function_app_name`
 
+The principal behind `AZURE_CREDENTIALS` must also be assigned the Azure Naming
+API's `admin` app role. The deploy workflow now requests a bearer token for the
+configured `AZURE_CLIENT_ID` and calls `POST /api/slug_sync` after every
+successful publish.
+
 ### 4. Publish the application code
 
 The application code is deployed from this repository when the deploy workflow runs on pushes to `main`.
@@ -64,6 +69,9 @@ The workflow:
 * runs tests
 * logs into Azure
 * publishes the repository root to the provisioned Function App
+* resolves the Function App hostname and `AZURE_CLIENT_ID` from Azure
+* requests an Entra bearer token for `api://<AZURE_CLIENT_ID>/.default`
+* retries `POST /api/slug_sync` until the initial slug import succeeds or the deployment fails
 
 ### 5. Publish the dev container image
 
@@ -147,5 +155,6 @@ Use tools like Postman or curl to hit endpoints using a valid Bearer token.
 
 * Ensure the Function App exists and is reachable at the Terraform output hostname
 * Ensure role-based access works with real Entra users or groups
-* Test slug updates manually with `POST /api/slug_sync`
+* Confirm the deploy workflow's post-deploy slug sync step succeeds
+* Use `POST /api/slug_sync` manually only for recovery or ad hoc refreshes
 * Verify name claims and audits persist in the provisioned storage tables

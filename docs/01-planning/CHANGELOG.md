@@ -6,6 +6,18 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.8.2] - 2026-04-14
+
+### Changed
+
+* The deployment workflow now triggers `POST /api/slug_sync` after every successful Function App publish.
+* Deployment documentation now requires the deploy principal to hold the Azure Naming `admin` app role so the post-deploy slug import can authenticate.
+
+### Fixed
+
+* Eliminated the deployment gap where a fresh publish could leave slug mappings stale until a manual sync or the weekly timer ran.
+
+
 ## [1.3.0] - 2025-10-09
 
 ### Added
