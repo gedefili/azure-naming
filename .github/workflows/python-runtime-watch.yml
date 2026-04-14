@@ -1,0 +1,81 @@
+name: Python Runtime Watch
+
+"on":
+  schedule:
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-runtime-upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Discover Azure Functions Python runtimes
+        id: runtimes
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            set -e
+            current=$(grep -E "PYTHON_VERSION:" .github/workflows/deploy.yml | head -n 1 | sed -E "s/.*'([0-9.]+)'.*/\1/")
+            latest=$(az functionapp list-runtimes --os linux --query "[?runtime=='python'].version" -o tsv | sort -V | tail -n 1)
+            echo "current=${current}" >> "$GITHUB_OUTPUT"
+            echo "latest=${latest}" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update upgrade issue
+        if: steps.runtimes.outputs.latest != '' && steps.runtimes.outputs.latest != steps.runtimes.outputs.current
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const current = '${{ steps.runtimes.outputs.current }}';
+            const latest = '${{ steps.runtimes.outputs.latest }}';
+            const title = `chore(runtime): evaluate Python ${latest} for Azure Functions`;
+            const body = [
+              'Azure Functions for Linux now reports a newer Python runtime than the version pinned in this repository.',
+              '',
+              `Current pinned runtime: Python ${current}`,
+              `Latest reported runtime: Python ${latest}`,
+              '',
+              'Upgrade checklist:',
+              '- update Terraform Function App runtime',
+              '- update CI/deploy workflow Python version pins',
+              '- update the devcontainer base image',
+              '- rerun full tests and deploy smoke tests',
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'runtime-upgrade',
+              per_page: 100,
+            });
+
+            const existing = issues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`Updated existing issue #${existing.number}`);
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['automation', 'dependencies', 'runtime-upgrade'],
+            });
+
+      - name: Confirm runtime alignment
+        if: steps.runtimes.outputs.latest == steps.runtimes.outputs.current
+        run: |
+          echo "Repository runtime is current at Python ${{ steps.runtimes.outputs.current }}"

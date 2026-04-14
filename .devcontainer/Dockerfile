@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+FROM mcr.microsoft.com/devcontainers/python:1-3.11-bookworm
 
 ARG IMAGE_VERSION=local
 ARG BUILD_DATE=unknown

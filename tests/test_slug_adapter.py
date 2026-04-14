@@ -27,6 +27,7 @@ def test_get_slug_prefers_fullname_and_resource_type_variants(monkeypatch):
 
     # lookup converts "resource group" to canonical "resource_group"
     assert slug_adapter.get_slug("resource group") == "rg"
+    assert slug_adapter.get_slug("Microsoft.Resources/resourceGroups") == "rg"
     # lookup with canonical "storage_account" returns slug
     assert slug_adapter.get_slug("storage_account") == "st"
 

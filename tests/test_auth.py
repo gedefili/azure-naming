@@ -100,6 +100,10 @@ class TestParseClientPrincipal:
 # ---------------------------------------------------------------------------
 
 class TestVerifyJwt:
+    @pytest.fixture(autouse=True)
+    def _reset_jwk_client(self, monkeypatch):
+        monkeypatch.setattr(auth, "_jwk_client", None)
+
     def test_missing_auth_header(self):
         with pytest.raises(AuthError, match="Missing bearer token"):
             verify_jwt({})

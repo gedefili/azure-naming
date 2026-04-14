@@ -125,6 +125,37 @@ def test_generate_and_claim_name_uses_user_defaults(monkeypatch):
     assert result.resource_type == "storage_account"
 
 
+def test_generate_and_claim_name_normalizes_azure_resource_type_aliases(monkeypatch):
+    payload = {
+        "resourceType": "Microsoft.Storage/storageAccounts",
+        "region": "wus2",
+        "environment": "sbx",
+        "system": "ERP",
+    }
+
+    captured = {}
+
+    def fake_get_slug(resource_type: str) -> str:
+        captured["slug_resource_type"] = resource_type
+        return "st"
+
+    def fake_claim_name(*args, **kwargs):
+        captured["claim_resource_type"] = kwargs["resource_type"]
+
+    monkeypatch.setattr(name_service, "get_slug", fake_get_slug)
+    monkeypatch.setattr(name_service, "build_name", lambda **kwargs: "wus2sbxstsanmarerp")
+    monkeypatch.setattr(name_service, "validate_name", lambda *args, **kwargs: None)
+    monkeypatch.setattr(name_service, "check_name_exists", lambda *args, **kwargs: False)
+    monkeypatch.setattr(name_service, "claim_name", fake_claim_name)
+    monkeypatch.setattr(name_service, "write_audit_log", lambda *args, **kwargs: None)
+
+    result = name_service.generate_and_claim_name(payload, requested_by="user@example.com")
+
+    assert result.resource_type == "storage_account"
+    assert captured["slug_resource_type"] == "storage_account"
+    assert captured["claim_resource_type"] == "storage_account"
+
+
 def test_generate_and_claim_name_for_sample_combinations(monkeypatch):
     resource_samples = [
         {

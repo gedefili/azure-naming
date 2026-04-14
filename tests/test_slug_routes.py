@@ -38,19 +38,23 @@ def test_resolve_slug_payload_includes_table_metadata(monkeypatch):
 
 
 def test_resolve_slug_payload_handles_missing_metadata(monkeypatch):
+    captured = {}
+
     class FakeTable:
         def get_entity(self, partition_key, row_key):
             raise slug_routes.ResourceNotFoundError("missing")
 
         def query_entities(self, **kwargs):
+            captured.update(kwargs)
             return []
 
     monkeypatch.setattr(slug_routes, "get_slug", lambda resource_type: "vm")
     monkeypatch.setattr(slug_routes, "get_table_client", lambda table_name: FakeTable())
 
-    payload = slug_routes._resolve_slug_payload(" virtual_machine ")
+    payload = slug_routes._resolve_slug_payload(" Microsoft.Network/virtualNetworks ")
 
-    assert payload == {"resourceType": "virtual_machine", "slug": "vm"}
+    assert payload == {"resourceType": "virtual_network", "slug": "vm"}
+    assert captured["query_filter"] == "ResourceType eq 'virtual_network'"
 
 
 def test_slug_lookup_returns_json_response(monkeypatch):
