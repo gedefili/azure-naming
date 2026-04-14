@@ -11,6 +11,15 @@ git tag -a v0.6.0 -m "v0.6.0: short description"
 git push origin v0.6.0
 ```
 
-4. GitHub Actions will create a release and attach artifacts if configured,
-   or maintainers can create the release via the GitHub UI.
+4. Azure DevOps will run the `azure-naming` pipeline for the tag and publish a `release` build artifact containing the source tarball.
 5. Announce the release as appropriate and update any downstream consumers.
+
+Manual queue example for a tag if needed:
+
+```bash
+az pipelines run \
+    --organization https://dev.azure.com/sanmarcloud \
+    --project "Infrastructure Administration" \
+    --name azure-naming \
+    --branch refs/tags/v0.6.0
+```

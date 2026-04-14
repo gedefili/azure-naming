@@ -12,5 +12,5 @@ templates:
     labels: ["integration"]
   - pattern: "core/**"
     labels: ["core"]
-  - pattern: ".github/workflows/**"
+  - pattern: "azure-pipelines.yml"
     labels: ["ci"]
