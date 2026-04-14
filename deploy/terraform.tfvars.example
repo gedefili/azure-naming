@@ -1,0 +1,14 @@
+# Copy this file to terraform.tfvars and fill in your values.
+
+project_name         = "naming"
+environment          = "prod"
+location             = "westus2"
+python_version       = "3.11"
+storage_account_name = "namingstorage123"   # Must be globally unique
+
+entra_app_display_name = "Azure Naming Service"
+entra_app_owners       = []                 # Entra user object IDs
+
+tags = {
+  team = "platform"
+}
