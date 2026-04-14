@@ -44,7 +44,7 @@ terraform apply
 
 ## Deploy Application Code
 
-After `terraform apply`, deploy the Function App code using the existing GitHub Actions workflow or manually:
+After `terraform apply`, deploy the Function App code using the Azure DevOps pipeline in `azure-pipelines.yml` or manually:
 
 ```bash
 cd ..

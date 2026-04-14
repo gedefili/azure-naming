@@ -6,6 +6,18 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.8.3] - 2026-04-14
+
+### Changed
+
+* Replaced the repository's active GitHub Actions workflows with an Azure DevOps multi-stage pipeline in `azure-pipelines.yml`.
+* Moved deployment, devcontainer publish, release artifact generation, and manual Postman execution guidance to Azure DevOps.
+
+### Fixed
+
+* Removed the split-brain CI/CD setup where GitHub remained capable of deploying code even though Azure DevOps is now the system of record.
+
+
 ## [1.8.2] - 2026-04-14
 
 ### Changed

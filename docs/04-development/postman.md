@@ -295,6 +295,6 @@ cd azure-naming && python3 -c "from adapters.slug_fetcher import get_all_remote_
 
 ## Workflow & CI Integration
 
-- The included GitHub workflows (`.github/workflows/postman.yml` and `.github/workflows/integration.yml`) accept an optional workflow input named `bearer_token` when run via "Run workflow" in the Actions UI. If provided, the value will be used to populate the Postman environment's `auth_token` variable for Newman runs. These workflows are input-only and do not read repository secrets.
+- The Azure DevOps `azure-naming` pipeline exposes a manual `runPostman` parameter plus optional `postmanBearerToken` and `postmanBaseUrl` parameters. When enabled, the pipeline runs Newman against `tests/postman_collection.json` using the provided token and base URL.
 
-If you need CI-run authenticated Newman requests consider either dispatching the workflow with a short-lived bearer token as the `bearer_token` input or running integration tests locally using `tools/run_integration_locally.py` with a token obtained via `tools/get_access_token.py`.
+If you need hosted authenticated Newman requests, queue the Azure DevOps pipeline with a short-lived bearer token, or run integration tests locally using `tools/run_integration_locally.py` with a token obtained via `tools/get_access_token.py`.
