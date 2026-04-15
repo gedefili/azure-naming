@@ -127,11 +127,32 @@ class TestVerifyJwt:
     @mock.patch.object(auth, "PyJWKClient")
     def test_successful_verify(self, mock_cls, mock_decode, monkeypatch):
         monkeypatch.setattr(auth, "JWKS_URL", "https://login.microsoftonline.com/t/discovery/v2.0/keys")
+        monkeypatch.setattr(auth, "_jwk_client", None)
+        monkeypatch.setattr(auth, "_jwk_client_url", None)
         mock_key = mock.MagicMock()
         mock_cls.return_value.get_signing_key_from_jwt.return_value = mock_key
         mock_decode.return_value = {"oid": "user-123", "roles": ["admin"]}
         claims = verify_jwt({"Authorization": "Bearer valid.token.here"})
         assert claims["oid"] == "user-123"
+
+    @mock.patch("jwt.decode")
+    @mock.patch.object(auth, "PyJWKClient")
+    def test_refreshes_cached_client_when_jwks_url_changes(self, mock_cls, mock_decode, monkeypatch):
+        stale_client = mock.MagicMock()
+        stale_client.get_signing_key_from_jwt.side_effect = AuthError("should not use stale client", status=500)
+
+        monkeypatch.setattr(auth, "_jwk_client", stale_client)
+        monkeypatch.setattr(auth, "_jwk_client_url", "https://old.example/keys")
+        monkeypatch.setattr(auth, "JWKS_URL", "https://login.microsoftonline.com/t/discovery/v2.0/keys")
+
+        mock_key = mock.MagicMock()
+        mock_cls.return_value.get_signing_key_from_jwt.return_value = mock_key
+        mock_decode.return_value = {"oid": "user-123", "roles": ["admin"]}
+
+        claims = verify_jwt({"Authorization": "Bearer valid.token.here"})
+
+        assert claims["oid"] == "user-123"
+        stale_client.get_signing_key_from_jwt.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
