@@ -113,17 +113,20 @@ def parse_client_principal(headers: Dict[str, str]) -> dict:
     return principal_json
 
 
-# Cache the JWKS client at module level to avoid per-request HTTP calls
+# Cache the JWKS client at module level to avoid per-request HTTP calls.
+# Track the URL it was created for so tests and reconfiguration do not reuse a stale client.
 _jwk_client: PyJWKClient | None = None
+_jwk_client_url: str | None = None
 
 
 def _get_jwk_client() -> PyJWKClient:
     """Return a cached PyJWKClient instance."""
-    global _jwk_client
-    if _jwk_client is None:
+    global _jwk_client, _jwk_client_url
+    if _jwk_client is None or _jwk_client_url != JWKS_URL:
         if not JWKS_URL:
             raise AuthError("Tenant ID not configured", status=500)
         _jwk_client = PyJWKClient(JWKS_URL, cache_keys=True, lifespan=3600)
+        _jwk_client_url = JWKS_URL
     return _jwk_client
 
 
