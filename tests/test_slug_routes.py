@@ -19,7 +19,7 @@ def test_resolve_slug_payload_includes_table_metadata(monkeypatch):
             return {
                 "ResourceType": "storage_account",
                 "FullName": "Storage Account",
-                "Source": "azure_defined_specs",
+                "Source": "microsoft_caf",
                 "UpdatedAt": "2024-01-01T00:00:00Z",
             }
 
@@ -32,7 +32,7 @@ def test_resolve_slug_payload_includes_table_metadata(monkeypatch):
         "resourceType": "storage_account",
         "slug": "st",
         "fullName": "Storage Account",
-        "source": "azure_defined_specs",
+        "source": "microsoft_caf",
         "updatedAt": "2024-01-01T00:00:00Z",
     }
 

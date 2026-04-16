@@ -26,7 +26,6 @@ from app.routes.audit import (
 
 def _fn(builder):
     """Extract the user function from an Azure Functions FunctionBuilder."""
-
     return builder._function.get_user_function()
 
 
@@ -212,6 +211,7 @@ class TestAuditName:
             "ResourceType": "vm", "InUse": True,
             "ClaimedAt": "2025-01-01", "ReleasedAt": None,
             "ReleaseReason": None, "Slug": "vm",
+            "ClaimState": "claimed", "StateChangedAt": "2025-01-01", "StateChangedBy": "u1", "StateVersion": 2,
             "Project": "proj1", "Purpose": "test",
             "Subsystem": None, "System": None, "Index": None,
             "CustomField": "custom_value",
@@ -226,6 +226,8 @@ class TestAuditName:
         body = json.loads(resp.get_body())
         assert body["name"] == "res"
         assert body["resource_type"] == "vm"
+        assert body["claim_state"] == "claimed"
+        assert body["state_version"] == 2
         assert "custom_field" in body
 
 
@@ -270,6 +272,7 @@ class TestAuditBulk:
             ("name1", "row1"): {
                 "PartitionKey": "name1", "RowKey": "row1",
                 "User": "alice", "Action": "claimed", "Note": "",
+                "StateBefore": "released", "StateAfter": "claimed", "StateVersion": 4,
                 "EventTime": datetime(2025, 1, 15, 10, 0, 0),
             },
         }
@@ -281,6 +284,8 @@ class TestAuditBulk:
         body = json.loads(resp.get_body())
         assert len(body["results"]) == 1
         assert body["results"][0]["user"] == "alice"
+        assert body["results"][0]["state_before"] == "released"
+        assert body["results"][0]["state_after"] == "claimed"
 
     def test_event_time_string(self, monkeypatch):
         entities = {

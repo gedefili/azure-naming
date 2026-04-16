@@ -1,0 +1,395 @@
+parameters:
+  - name: runPostman
+    type: boolean
+    default: false
+  - name: postmanBearerToken
+    type: string
+    default: ''
+  - name: postmanBaseUrl
+    type: string
+    default: ''
+  - name: devcontainerVersion
+    type: string
+    default: ''
+
+trigger:
+  branches:
+    include:
+      - main
+  tags:
+    include:
+      - v*
+      - provider-v*
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: azure-naming-shared
+  - name: pythonVersion
+    value: '3.11'
+  - name: vmImage
+    value: 'ubuntu-latest'
+
+stages:
+  - stage: validate
+    displayName: Validate
+    jobs:
+      - job: tests
+        displayName: Unit tests and coverage
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UsePythonVersion@0
+            displayName: Set up Python
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              python -m pip install --upgrade pip
+              python -m pip install -r requirements.txt
+            displayName: Install dependencies
+
+          - script: python tools/run_tests_with_coverage.py
+            displayName: Run tests and coverage gate
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish coverage summary
+            condition: always()
+            inputs:
+              PathtoPublish: coverage-summary.json
+              ArtifactName: coverage-summary
+              publishLocation: Container
+
+  - stage: deploy
+    displayName: Deploy function app
+    dependsOn: validate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: function_app
+        displayName: Publish Azure Function App
+        pool:
+          vmImage: $(vmImage)
+        variables:
+          packageName: azure-naming-deploy.zip
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UsePythonVersion@0
+            displayName: Set up Python
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              python -m pip install --upgrade pip
+              python -m pip install -r requirements.txt
+              python -m pip install pytest
+            displayName: Install dependencies
+
+          - script: pytest -q
+            displayName: Run tests
+
+          - script: |
+              required_vars=(
+                AZURE_SERVICE_PRINCIPAL_ID
+                AZURE_SERVICE_PRINCIPAL_SECRET
+                AZURE_TENANT_ID
+                FUNCTION_APP_SUBSCRIPTION_ID
+                FUNCTION_APP_NAME
+                FUNCTION_APP_RESOURCE_GROUP
+              )
+
+              for required_var in "${required_vars[@]}"; do
+                if [ -z "${!required_var:-}" ]; then
+                  echo "Required pipeline variable '$required_var' is not set." >&2
+                  exit 1
+                fi
+              done
+
+              az login --service-principal \
+                --username "$AZURE_SERVICE_PRINCIPAL_ID" \
+                --password "$AZURE_SERVICE_PRINCIPAL_SECRET" \
+                --tenant "$AZURE_TENANT_ID"
+
+              az account set --subscription "$FUNCTION_APP_SUBSCRIPTION_ID"
+
+              python -m pip install \
+                --target=".python_packages/lib/site-packages" \
+                --implementation cp \
+                --platform manylinux2014_x86_64 \
+                --only-binary=:all: \
+                -r requirements.txt
+
+              rm -f "$(packageName)"
+              zip -rq "$(packageName)" . \
+                -x ".git/*" \
+                -x ".venv/*" \
+                -x ".pytest_cache/*" \
+                -x "__pycache__/*" \
+                -x "$(packageName)"
+
+              az functionapp deployment source config-zip \
+                --resource-group "$FUNCTION_APP_RESOURCE_GROUP" \
+                --name "$FUNCTION_APP_NAME" \
+                --src "$(packageName)"
+
+              default_hostname=$(az functionapp show \
+                --resource-group "$FUNCTION_APP_RESOURCE_GROUP" \
+                --name "$FUNCTION_APP_NAME" \
+                --query defaultHostName \
+                -o tsv)
+
+              api_client_id=$(az functionapp config appsettings list \
+                --name "$FUNCTION_APP_NAME" \
+                --resource-group "$FUNCTION_APP_RESOURCE_GROUP" \
+                --query "[?name=='AZURE_CLIENT_ID'].value | [0]" \
+                -o tsv)
+
+              if [ -z "$default_hostname" ] || [ -z "$api_client_id" ]; then
+                echo "Unable to resolve default hostname or AZURE_CLIENT_ID after deployment." >&2
+                exit 1
+              fi
+
+              access_token=$(az account get-access-token \
+                --scope "api://$api_client_id/.default" \
+                --query accessToken \
+                -o tsv)
+
+              if [ -z "$access_token" ]; then
+                echo "Unable to acquire bearer token for post-deploy slug sync." >&2
+                exit 1
+              fi
+
+              slug_sync_url="https://$default_hostname/api/slug_sync"
+              max_attempts=5
+              attempt=1
+
+              while [ "$attempt" -le "$max_attempts" ]; do
+                echo "Attempt $attempt/$max_attempts: triggering slug sync"
+
+                response_file=$(mktemp)
+                status_code=$(curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
+                  -X POST "$slug_sync_url" \
+                  -H "Authorization: Bearer $access_token" \
+                  -H "Content-Type: application/json" \
+                  -d '{}')
+
+                response_body=$(cat "$response_file")
+                rm -f "$response_file"
+
+                if [ "$status_code" = "200" ]; then
+                  echo "Slug sync succeeded: $response_body"
+                  exit 0
+                fi
+
+                echo "Slug sync failed with HTTP $status_code: $response_body" >&2
+                if [ "$attempt" -lt "$max_attempts" ]; then
+                  sleep 15
+                fi
+
+                attempt=$((attempt + 1))
+              done
+
+              echo "Slug sync did not succeed after $max_attempts attempts." >&2
+              exit 1
+            displayName: Deploy function app and trigger slug sync
+            env:
+              AZURE_SERVICE_PRINCIPAL_ID: $(azureServicePrincipalId)
+              AZURE_SERVICE_PRINCIPAL_SECRET: $(azureServicePrincipalSecret)
+              AZURE_TENANT_ID: $(azureTenantId)
+              FUNCTION_APP_SUBSCRIPTION_ID: $(functionAppSubscriptionId)
+              FUNCTION_APP_NAME: $(functionAppName)
+              FUNCTION_APP_RESOURCE_GROUP: $(functionAppResourceGroup)
+
+  - stage: publish_devcontainer
+    displayName: Publish dev container image
+    dependsOn: validate
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v')))
+    jobs:
+      - job: image
+        displayName: Build and publish ACR image
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              image_version=''
+              if [ -n '${{ parameters.devcontainerVersion }}' ]; then
+                image_version='${{ parameters.devcontainerVersion }}'
+              elif [[ "$BUILD_SOURCEBRANCH" == refs/tags/v* ]]; then
+                image_version="${BUILD_SOURCEBRANCH#refs/tags/v}"
+              elif [ "$BUILD_SOURCEBRANCH" = 'refs/heads/main' ]; then
+                image_version='latest'
+              else
+                image_version="sha-${BUILD_SOURCEVERSION:0:12}"
+              fi
+
+              echo "##vso[task.setvariable variable=imageVersion]$image_version"
+              echo "Publishing ${ACR_NAME}.azurecr.io/${ACR_IMAGE_REPOSITORY}:$image_version"
+
+              acr_sp_id="${ACR_SERVICE_PRINCIPAL_ID:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_ID}"
+              acr_sp_secret="${ACR_SERVICE_PRINCIPAL_SECRET:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET}"
+              acr_tenant_id="${ACR_TENANT_ID:-$PRIMARY_AZURE_TENANT_ID}"
+
+              required_vars=(
+                ACR_SUBSCRIPTION_ID
+                ACR_RESOURCE_GROUP
+                ACR_NAME
+                ACR_IMAGE_REPOSITORY
+              )
+
+              for required_var in "${required_vars[@]}"; do
+                if [ -z "${!required_var:-}" ]; then
+                  echo "Required pipeline variable '$required_var' is not set." >&2
+                  exit 1
+                fi
+              done
+
+              if [ -z "$acr_sp_id" ] || [ -z "$acr_sp_secret" ] || [ -z "$acr_tenant_id" ]; then
+                echo "ACR credentials are not configured. Set acrServicePrincipalId/acrServicePrincipalSecret/acrTenantId or reuse the main Azure credentials." >&2
+                exit 1
+              fi
+
+              az login --service-principal \
+                --username "$acr_sp_id" \
+                --password "$acr_sp_secret" \
+                --tenant "$acr_tenant_id"
+
+              az account set --subscription "$ACR_SUBSCRIPTION_ID"
+
+              az acr build \
+                --registry "$ACR_NAME" \
+                --resource-group "$ACR_RESOURCE_GROUP" \
+                --image "$ACR_IMAGE_REPOSITORY:$image_version" \
+                --file .devcontainer/Dockerfile \
+                --build-arg IMAGE_VERSION="$image_version" \
+                --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                --build-arg VCS_REF="$BUILD_SOURCEVERSION" \
+                .
+            displayName: Publish dev container image
+            env:
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_ID: $(azureServicePrincipalId)
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET: $(azureServicePrincipalSecret)
+              PRIMARY_AZURE_TENANT_ID: $(azureTenantId)
+              ACR_SERVICE_PRINCIPAL_ID: $(acrServicePrincipalId)
+              ACR_SERVICE_PRINCIPAL_SECRET: $(acrServicePrincipalSecret)
+              ACR_TENANT_ID: $(acrTenantId)
+              ACR_SUBSCRIPTION_ID: $(acrSubscriptionId)
+              ACR_RESOURCE_GROUP: $(acrResourceGroup)
+              ACR_NAME: $(acrName)
+              ACR_IMAGE_REPOSITORY: $(acrImageRepository)
+
+  - stage: publish_provider
+    displayName: Publish Terraform provider
+    dependsOn: validate
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/provider-v'))
+    jobs:
+      - job: provider
+        displayName: Build and publish sanmar/naming provider
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              provider_version="${BUILD_SOURCEBRANCH#refs/tags/provider-v}"
+              if [ -z "$provider_version" ]; then
+                echo "Unable to determine provider version from tag $BUILD_SOURCEBRANCH" >&2
+                exit 1
+              fi
+
+              acr_sp_id="${ACR_SERVICE_PRINCIPAL_ID:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_ID}"
+              acr_sp_secret="${ACR_SERVICE_PRINCIPAL_SECRET:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET}"
+              acr_tenant_id="${ACR_TENANT_ID:-$PRIMARY_AZURE_TENANT_ID}"
+
+              if [ -z "$acr_sp_id" ] || [ -z "$acr_sp_secret" ] || [ -z "$acr_tenant_id" ]; then
+                echo "ACR credentials are not configured for provider publishing." >&2
+                exit 1
+              fi
+
+              az login --service-principal \
+                --username "$acr_sp_id" \
+                --password "$acr_sp_secret" \
+                --tenant "$acr_tenant_id"
+
+              az account set --subscription "$ACR_SUBSCRIPTION_ID"
+
+              bash tools/publish_provider_acr.sh --version "$provider_version"
+            displayName: Publish provider to ACR
+            env:
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_ID: $(azureServicePrincipalId)
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET: $(azureServicePrincipalSecret)
+              PRIMARY_AZURE_TENANT_ID: $(azureTenantId)
+              ACR_SERVICE_PRINCIPAL_ID: $(acrServicePrincipalId)
+              ACR_SERVICE_PRINCIPAL_SECRET: $(acrServicePrincipalSecret)
+              ACR_TENANT_ID: $(acrTenantId)
+              ACR_SUBSCRIPTION_ID: $(acrSubscriptionId)
+  - stage: release_artifact
+    displayName: Publish release artifact
+    dependsOn: validate
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    jobs:
+      - job: package
+        displayName: Archive tagged source
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              mkdir -p dist
+              tag_name="${BUILD_SOURCEBRANCH#refs/tags/}"
+              git archive --format=tar.gz --output="dist/azure-naming-${tag_name}.tar.gz" "$tag_name"
+            displayName: Create release tarball
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish release artifact
+            inputs:
+              PathtoPublish: dist
+              ArtifactName: release
+              publishLocation: Container
+
+  - ${{ if eq(parameters.runPostman, true) }}:
+      - stage: manual_postman
+        displayName: Run Postman collection
+        dependsOn: validate
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        jobs:
+          - job: newman
+            displayName: Newman
+            pool:
+              vmImage: $(vmImage)
+            steps:
+              - checkout: self
+                fetchDepth: 0
+
+              - task: NodeTool@0
+                displayName: Set up Node.js
+                inputs:
+                  versionSpec: '18.x'
+
+              - script: |
+                  if [ -n '${{ parameters.postmanBearerToken }}' ]; then
+                    jq --arg token '${{ parameters.postmanBearerToken }}' '.values |= map(if .key=="auth_token" then .value=$token else . end)' tests/postman_environment.json > /tmp/env.json
+                  else
+                    cp tests/postman_environment.json /tmp/env.json
+                    echo 'Running Newman without Authorization header (auth_token empty).'
+                  fi
+
+                  if [ -n '${{ parameters.postmanBaseUrl }}' ]; then
+                    jq --arg base_url '${{ parameters.postmanBaseUrl }}' '.values |= map(if .key=="baseUrl" then .value=$base_url else . end)' /tmp/env.json > /tmp/env.next.json
+                    mv /tmp/env.next.json /tmp/env.json
+                  fi
+
+                  npx newman@6 run tests/postman_collection.json -e /tmp/env.json --insecure
+                displayName: Run Postman collection

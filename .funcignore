@@ -1,1 +1,29 @@
+# Virtual environment
 .venv
+
+# Test and development files
+tests/
+tools/
+docs/
+deploy/
+terraform-provider-sanmar/
+
+# IDE and git
+.git/
+.github/
+.vscode/
+.devcontainer/
+
+# Build artifacts and config
+*.pyc
+__pycache__/
+coverage-summary.json
+local.settings.json
+azure-naming.code-workspace
+AI_INSTRUCTIONS.md
+SYSTEM_OVERVIEW.md
+LICENSE
+README.md
+
+# Azurite local data
+.azurite/

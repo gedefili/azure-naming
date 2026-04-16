@@ -5,6 +5,7 @@ Guides for deployment, security, compliance, cost management, and release proced
 ## Documents
 
 - **[Deployment Checklist](deployment.md)** — Current standard for `environs-iac` provisioning and code publish
+- **[Operator Cutover Plan](operator-cutover-plan.md)** — Operator-owned steps to enforce Azure DevOps and shut down retired GitHub automation
 - **[Security & Compliance](SECURITY.md)** — Security model, encryption, compliance considerations
 - **[Security Audit Report](security-audit-2025-10-16.md)** — Professional third-party security assessment
 - **[Cost Estimation](cost-estimate.md)** — 10-year cost projection and optimization strategies
@@ -30,6 +31,14 @@ See: [Security & Compliance](SECURITY.md) and [Security Audit Report](security-a
 - Database schema initialization
 
 See: [Deployment Checklist](deployment.md)
+
+### Cutover
+
+- Azure DevOps branch policy enforcement
+- GitHub workflow shutdown for the retired mirror
+- Operator-only permission and verification steps
+
+See: [Operator Cutover Plan](operator-cutover-plan.md)
 
 ### Cost Management
 

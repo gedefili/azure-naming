@@ -139,16 +139,25 @@ def _perform_slug_sync() -> Tuple[int, str]:
     created_count = 0
     updated_count = 0
     existing_count = 0
+    sync_time = datetime.now(tz=timezone.utc).isoformat()
 
-    for slug, full_name in remote_slugs.items():
+    for slug, resource_type in remote_slugs.items():
         partition_key = SLUG_PARTITION_KEY
         row_key = slug
+        canonical_resource_type = str(resource_type).strip().lower()
 
         try:
             entity = slug_table.get_entity(partition_key=partition_key, row_key=row_key)
-            if entity.get("FullName") != full_name:
-                entity["FullName"] = full_name
-                entity["UpdatedAt"] = datetime.now(tz=timezone.utc).isoformat()
+            if (
+                entity.get("FullName") != canonical_resource_type
+                or entity.get("ResourceType") != canonical_resource_type
+                or entity.get("Source") != "microsoft_caf"
+            ):
+                entity["Slug"] = slug
+                entity["FullName"] = canonical_resource_type
+                entity["ResourceType"] = canonical_resource_type
+                entity["Source"] = "microsoft_caf"
+                entity["UpdatedAt"] = sync_time
                 slug_table.update_entity(entity=entity, mode="Replace")
                 updated_count += 1
             else:
@@ -158,8 +167,10 @@ def _perform_slug_sync() -> Tuple[int, str]:
                 "PartitionKey": partition_key,
                 "RowKey": row_key,
                 "Slug": slug,
-                "FullName": full_name,
-                "UpdatedAt": datetime.now(tz=timezone.utc).isoformat(),
+                "FullName": canonical_resource_type,
+                "ResourceType": canonical_resource_type,
+                "Source": "microsoft_caf",
+                "UpdatedAt": sync_time,
             }
             slug_table.upsert_entity(entity=new_entity, mode=UpdateMode.MERGE)
             created_count += 1

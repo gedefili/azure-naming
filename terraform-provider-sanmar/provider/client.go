@@ -102,7 +102,7 @@ func (c *APIClient) doRequest(ctx context.Context, req *http.Request) (*http.Res
 	for {
 		attempts++
 		resp, err := c.http.Do(req)
-		if err == nil && resp.StatusCode < 500 {
+		if err == nil && resp.StatusCode < 500 && resp.StatusCode != http.StatusTooManyRequests {
 			return resp, nil
 		}
 
@@ -192,7 +192,7 @@ func (c *APIClient) ClaimName(ctx context.Context, payload ClaimNameRequest) (*C
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, decodeError(resp)
 	}
 
@@ -224,7 +224,7 @@ func (c *APIClient) ReleaseName(ctx context.Context, payload ReleaseRequest) err
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return decodeError(resp)
 	}
 	resp.Body.Close()

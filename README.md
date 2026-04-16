@@ -1,9 +1,5 @@
 # 🧭 Azure Naming Function
 
-[![CI](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml/badge.svg)](https://github.com/gedefili/azure-naming/actions/workflows/ci.yml)
-[![Release](https://github.com/gedefili/azure-naming/actions/workflows/release.yml/badge.svg)](https://github.com/gedefili/azure-naming/releases)
-[![Integration](https://github.com/gedefili/azure-naming/actions/workflows/integration.yml/badge.svg)](https://github.com/gedefili/azure-naming/actions/workflows/integration.yml)
-
 This project provides a secure, auditable, and standards-compliant Azure naming service. It uses Azure Functions, Table Storage, and Entra ID for identity and access control.
 
 <!-- Architecture Diagram -->
@@ -42,6 +38,7 @@ graph TD
 * 🔐 Role-based access control (Entra ID)
 * 🧾 Audit logs and user history
 * ♻️ Release + recycle name logic
+* 🛠️ Admin remediation for orphaned or purged claims
 * 🔁 Slug sync from Azure naming standards
 * 🧩 Extensible provider model for naming rules and slug resolution
 
@@ -52,6 +49,7 @@ graph TD
 * `POST /api/claim` — generate and reserve a name
 * `GET  /api/slug?resource_type=` — resolve the slug for a resource type
 * `POST /api/release` — release an existing name
+* `POST /api/claims/remediate` — admin-only orphan or purge remediation for an existing claim
 * `GET  /api/audit?name=` — audit a single name
 * `GET  /api/audit_bulk?...` — audit a user/project/time
 * `POST /api/slug_sync` — manually refresh slugs (default provider updates Table Storage)
@@ -68,7 +66,7 @@ Assign one of the custom app roles to callers in Entra ID:
 | ---- | ----------- |
 | **Sanmar Naming Reader** | View OpenAPI docs and query audits for your own activity. |
 | **Sanmar Naming Contributor** | Generate/release names and query audits. |
-| **Sanmar Naming Admin** | Everything above plus slug sync and cross-user audits. |
+| **Sanmar Naming Admin** | Everything above plus slug sync, cross-user audits, and orphan/purge remediation. |
 
 Tokens are validated server-side; no function keys are required.
 
@@ -80,7 +78,7 @@ The current production standard is a two-repository flow:
 
 * Provision infrastructure from `environs-iac` at `sanmar/applications/internal/azure-naming/service`
 * Let Terraform create the Function App, storage resources, monitoring resources, and the Entra API app registration
-* Publish this application repository to the provisioned Function App through the GitHub Actions deploy workflow
+* Publish this application repository to the provisioned Function App through the Azure DevOps pipeline in `azure-pipelines.yml`
 
 See [docs/05-operations/deployment.md](docs/05-operations/deployment.md) for the current sequence and handoff points.
 
@@ -108,7 +106,7 @@ Quick navigation by topic:
 - 📋 **[Deployment Checklist](docs/05-operations/deployment.md)** — `environs-iac` provisioning and application publish flow
 - 🧩 **[Module Structure](docs/04-development/module-structure.md)** — Python package organization
 
-For local development, the preferred path is now reopening the repository in the included VS Code dev container. It bundles Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite so the existing `dev:start-local-stack` task and debug configuration work without extra host setup. The same image definition is also published to the SanMar registry as `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:<version>` by the dev container publish workflow. That workflow uses a dedicated GitHub secret, `AZURE_ACR_CREDENTIALS`; the validated secret shape and an example successful workflow run are documented in [docs/05-operations/deployment.md](docs/05-operations/deployment.md). Azure deployment for the service itself remains the current source-publish Function App workflow documented in [docs/05-operations/deployment.md](docs/05-operations/deployment.md).
+For local development, the preferred path is now reopening the repository in the included VS Code dev container. It bundles Python, Node.js, Azure CLI, Azure Functions Core Tools, and Azurite so the existing `dev:start-local-stack` task and debug configuration work without extra host setup. The same image definition is also published to the SanMar registry as `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:<version>` by the Azure DevOps pipeline in `azure-pipelines.yml`. Azure deployment for the service itself also runs from that Azure DevOps pipeline, including the post-deploy slug sync.
 
 The architecture diagram above is rendered from [docs/04-development/architecture.mmd](docs/04-development/architecture.mmd).
 
@@ -116,12 +114,12 @@ The architecture diagram above is rendered from [docs/04-development/architectur
 
 ## ✅ Branch Protection
 
-Require the `Integration tests` workflow before merging to `main`:
+Require the Azure DevOps `azure-naming` pipeline before merging to `main`:
 
-1. Navigate to **Settings → Branches**, edit (or create) the rule for `main`.
-2. Enable **Require status checks to pass before merging**.
-3. Select **Integration tests** (workflow file: `.github/workflows/integration.yml`).
-4. Save the rule so that every merge validates the end-to-end suite.
+1. Open **Project Settings → Repositories → cloud-resource-naming → Policies** in Azure DevOps.
+2. Add a **Build validation** policy for `main`.
+3. Select the `azure-naming` pipeline.
+4. Save the policy so every PR validates through Azure DevOps.
 
 ---
 
@@ -166,9 +164,9 @@ jq --arg token "$ACCESS_TOKEN" '.values |= map(if .key=="auth_token" then .value
 npx newman run tests/postman_collection.json -e /tmp/env.json --insecure
 ```
 
-GitHub Actions
+Azure DevOps
 
-- `postman.yml` supports a `bearer_token` workflow input when you manually dispatch the workflow; the workflow is input-only and does not read repository secrets. For CI runs that need authenticated Postman requests, provide the token as the `bearer_token` input when dispatching the workflow. Avoid storing long-lived tokens in repository secrets—prefer short-lived test tokens or run tests locally with the token helper.
+- Queue the `azure-naming` pipeline with the `runPostman=true` parameter when you want a hosted Newman run. Pass `postmanBearerToken` only for short-lived manual test runs; avoid storing long-lived tokens in pipeline variables.
 
 Local integration helper
 

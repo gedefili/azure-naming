@@ -10,7 +10,7 @@ This guide describes the current deployment standard for Azure Naming. Infrastru
 * Azure CLI installed and logged in
 * Python 3.11 environment
 * Access to Azure subscription and Entra ID
-* GitHub repository secrets or OIDC configuration for the deploy workflow
+* Azure DevOps project access with permission to queue pipelines and manage pipeline variables
 
 ---
 
@@ -44,30 +44,55 @@ The key outputs from Terraform are:
 * `entra_tenant_id`
 * `entra_app_client_secret` when needed for client flows
 
-### 3. Configure the application publish path
+### 3. Configure the Azure DevOps pipeline
 
-This repository publishes the Python application code through [deploy.yml](../../.github/workflows/deploy.yml).
+This repository publishes the Python application code through [azure-pipelines.yml](../../azure-pipelines.yml).
 
-The workflow currently expects:
+Create an Azure DevOps variable group named `azure-naming-shared` and set these non-secret values:
 
-* `AZURE_CREDENTIALS` for `azure/login`
-* `AZURE_FUNCTIONAPP_NAME` matching the Terraform output `function_app_name`
+* `functionAppName = wus2-prd-fn-aznaming`
+* `functionAppResourceGroup = wus2-prd-rg-aznaming`
+* `functionAppSubscriptionId = cfe7cbd7-1b9d-4f5c-9459-57d72559d3f5`
+* `acrSubscriptionId = a889bd72-26dd-49eb-8b8b-e874846ad155`
+* `acrResourceGroup = wus2-prd-rg-iac-registry`
+* `acrName = wus2prdcrsanmariac`
+* `acrImageRepository = iac/naming/azure`
+
+Set these secret variables either in the same variable group or directly on the pipeline:
+
+* `azureServicePrincipalId`
+* `azureServicePrincipalSecret`
+* `azureTenantId`
+* `acrServicePrincipalId` if ACR publishing uses a different principal
+* `acrServicePrincipalSecret` if ACR publishing uses a different principal
+* `acrTenantId` if ACR publishing uses a different tenant
+
+The principal behind the deploy credentials must also be assigned the Azure Naming API's `admin` app role. The deployment stage requests a bearer token for the configured `AZURE_CLIENT_ID` and calls `POST /api/slug_sync` after every successful publish.
+
+The principal behind `AZURE_CREDENTIALS` must also be assigned the Azure Naming
+API's `admin` app role. The deploy workflow now requests a bearer token for the
+configured `AZURE_CLIENT_ID` and calls `POST /api/slug_sync` after every
+successful publish.
 
 ### 4. Publish the application code
 
-The application code is deployed from this repository when the deploy workflow runs on pushes to `main`.
+The application code is deployed from this repository when the Azure DevOps `azure-naming` pipeline runs on pushes to `main`.
 
-The workflow:
+The pipeline:
 
 * checks out the code
 * installs dependencies
 * runs tests
-* logs into Azure
-* publishes the repository root to the provisioned Function App
+* logs into Azure with the configured service principal
+* packages the repository for zip deployment
+* publishes the package to the provisioned Function App
+* resolves the Function App hostname and `AZURE_CLIENT_ID` from Azure
+* requests an Entra bearer token for `api://<AZURE_CLIENT_ID>/.default`
+* retries `POST /api/slug_sync` until the initial slug import succeeds or the deployment fails
 
 ### 5. Publish the dev container image
 
-The repository now publishes the dev container image with [devcontainer-publish.yml](../../.github/workflows/devcontainer-publish.yml).
+The same Azure DevOps pipeline publishes the dev container image.
 
 Target registry settings:
 
@@ -76,37 +101,35 @@ Target registry settings:
 * registry: `wus2prdcrsanmariac`
 * repository path: `iac/naming/azure:<version>`
 
-The workflow behavior is:
+The pipeline behavior is:
 
 * pushes to `main` publish `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:latest`
 * git tags like `v1.2.3` publish `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:1.2.3`
-* manual runs can publish any explicit `version` value
+* manual runs can override the image tag with the `devcontainerVersion` pipeline parameter
 
-The workflow uses Azure Container Registry build tasks, so GitHub Actions only needs Azure login permissions and does not need a local Docker daemon.
+The pipeline uses Azure Container Registry build tasks, so the build agent only needs Azure login permissions and does not need a local Docker daemon.
 
-Use a dedicated GitHub Actions secret named `AZURE_ACR_CREDENTIALS` for this workflow. Do not reuse `AZURE_CREDENTIALS`, because that secret is also used by the Function App deployment workflow and may point at a different subscription.
+### Terraform provider publishing
 
-Verified secret payload shape for `AZURE_ACR_CREDENTIALS`:
+The repository also publishes the `sanmar/naming` Terraform provider through the
+same Azure DevOps pipeline, but only for tags in the `provider-v*` namespace.
 
-```json
-{
-	"clientId": "<service-principal-app-id>",
-	"clientSecret": "<service-principal-password>",
-	"subscriptionId": "a889bd72-26dd-49eb-8b8b-e874846ad155",
-	"tenantId": "<entra-tenant-id>"
-}
-```
+The provider flow is:
+
+* merge the provider change into `main`
+* create an annotated tag such as `provider-v1.2.0`
+* let the `publish_provider` stage run `tools/publish_provider_acr.sh --version 1.2.0`
+
+This keeps application deployment tags (`v*`) separate from provider release
+tags while reusing the same ACR credentials.
 
 Notes:
 
-* all values are strings
+* the ACR credentials can reuse the main deploy principal if it has rights in both subscriptions
+* otherwise configure separate `acrServicePrincipalId`, `acrServicePrincipalSecret`, and `acrTenantId` secrets
 * the service principal must be able to select subscription `a889bd72-26dd-49eb-8b8b-e874846ad155`
 * the service principal must have enough access to read `wus2prdcrsanmariac` and run `az acr build` against it
-* a registry-scoped or resource-group-scoped role assignment is sufficient for this workflow; it does not need Function App deployment permissions
-
-Verification reference:
-
-* successful manual publish of `wus2prdcrsanmariac.azurecr.io/iac/naming/azure:0.1.0`: `https://github.com/gedefili/azure-naming/actions/runs/24159607753`
+* a registry-scoped or resource-group-scoped role assignment is sufficient for the image publish stage; it does not need Function App deployment permissions
 
 ### Local container usage
 
@@ -159,5 +182,6 @@ Use tools like Postman or curl to hit endpoints using a valid Bearer token.
 
 * Ensure the Function App exists and is reachable at the Terraform output hostname
 * Ensure role-based access works with real Entra users or groups
-* Test slug updates manually with `POST /api/slug_sync`
+* Confirm the Azure DevOps deploy stage's post-deploy slug sync step succeeds
+* Use `POST /api/slug_sync` manually only for recovery or ad hoc refreshes
 * Verify name claims and audits persist in the provisioned storage tables
