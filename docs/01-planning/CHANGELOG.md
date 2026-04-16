@@ -33,8 +33,6 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `M
 * The provider no longer reports a Terraform null object when a slug mapping is missing; it now returns an explicit diagnostic error.
 * Added local slug overrides for eight Azure resource types that were absent from the upstream slug source.
 * Fixed the provider HTTP retry path so `429 Too Many Requests` responses are retried instead of returned immediately.
-
-
 ## [1.8.3] - 2026-04-14
 
 ### Changed

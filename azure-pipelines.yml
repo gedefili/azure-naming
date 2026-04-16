@@ -333,7 +333,6 @@ stages:
               ACR_SERVICE_PRINCIPAL_SECRET: $(acrServicePrincipalSecret)
               ACR_TENANT_ID: $(acrTenantId)
               ACR_SUBSCRIPTION_ID: $(acrSubscriptionId)
-
   - stage: release_artifact
     displayName: Publish release artifact
     dependsOn: validate
