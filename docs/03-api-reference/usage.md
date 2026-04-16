@@ -235,7 +235,7 @@ If the resource type is unknown, the endpoint responds with `404 Not Found`.
 
 **POST** `/api/slug_sync`
 
-Manually refreshes slug definitions from the GitHub `defined_specs` file and updates Table Storage.
+Manually refreshes slug definitions from the Microsoft Cloud Adoption Framework resource abbreviation table and updates Table Storage.
 
 ### Returns:
 
