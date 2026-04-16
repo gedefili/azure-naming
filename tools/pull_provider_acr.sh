@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# Repository: tools-iac
-# Path: bash/naming/pull-provider-acr.sh
+# Repository: azure-naming
+# Path: tools/pull_provider_acr.sh
 # Purpose: Pull the sanmar/naming Terraform provider from ACR and install into the local filesystem mirror
-# Author: Infrastructure Team / GitHub Copilot
+# Author: SanMar Platform Team
 # Created: 2026-04-13
-# Last-Modified: 2026-04-13
-# Version: 1.0.0
+# Last-Modified: 2026-04-16
+# Version: 1.1.0
 # Execution-Context: container
 # Category: naming
 #
 # Usage:
-#   bash /workspaces/tools-iac/bash/naming/pull-provider-acr.sh
-#   bash /workspaces/tools-iac/bash/naming/pull-provider-acr.sh --version 1.0.0
-#   bash /workspaces/tools-iac/bash/naming/pull-provider-acr.sh --check
+#   bash tools/pull_provider_acr.sh
+#   bash tools/pull_provider_acr.sh --version 1.0.0
+#   bash tools/pull_provider_acr.sh --check
 #
 # Prerequisites:
 #   - az login session with ACR pull access
@@ -42,7 +42,7 @@ err() { printf "[naming-provider] ERROR: %s\n" "$*" >&2; exit 1; }
 
 show_usage() {
   cat <<'USAGE'
-Usage: pull-provider-acr.sh [OPTIONS]
+Usage: pull_provider_acr.sh [OPTIONS]
 
 Options:
   --version VER   Provider version to pull (default: latest)
