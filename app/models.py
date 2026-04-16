@@ -64,6 +64,16 @@ class ReleaseRequest(BaseModel):
     )
 
 
+class AdminNameStateRequest(BaseModel):
+    """Schema describing an admin remediation request for a claimed name."""
+
+    name: str = Field(..., description="Fully qualified name to remediate.")
+    action: str = Field(..., description="Admin action to apply: orphan or purge.")
+    reason: str = Field(..., description="Required reason describing why the remediation is needed.")
+    region: str | None = Field(default=None, description="Region where the name was registered (optional if resolvable from name).")
+    environment: str | None = Field(default=None, description="Environment where the name was registered (optional if resolvable from name).")
+
+
 class MessageResponse(BaseModel):
     message: str
 
@@ -87,6 +97,13 @@ class AuditRecordResponse(BaseModel):
     released_by: str | None = None
     released_at: str | None = None
     release_reason: str | None = None
+    claim_state: str | None = None
+    state_changed_at: str | None = None
+    state_changed_by: str | None = None
+    state_version: int | None = None
+    orphaned_by: str | None = None
+    orphaned_at: str | None = None
+    orphan_reason: str | None = None
     region: str
     environment: str
     slug: str | None = None
@@ -108,6 +125,9 @@ class AuditLogEntry(BaseModel):
     project: str | None = None
     purpose: str | None = None
     resource_type: str | None = None
+    state_before: str | None = None
+    state_after: str | None = None
+    state_version: int | None = None
 
 
 class AuditBulkResponse(BaseModel):

@@ -21,11 +21,14 @@ _TABLE_ROW = re.compile(
 
 LOCAL_SLUG_OVERRIDES = {
     "app": "app_service",
+    "ca": "container_app",
+    "cae": "container_app_environment",
     "cr": "container_registry",
     "cosmos": "cosmosdb_account",
     "id": "managed_identity",
     "pdnsz": "private_dns_zone",
     "pip": "public_ip_address",
+    "snet": "subnet",
     "sql": "sql_server",
     "sqldb": "sql_database",
 }

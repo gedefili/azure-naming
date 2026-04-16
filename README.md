@@ -38,6 +38,7 @@ graph TD
 * 🔐 Role-based access control (Entra ID)
 * 🧾 Audit logs and user history
 * ♻️ Release + recycle name logic
+* 🛠️ Admin remediation for orphaned or purged claims
 * 🔁 Slug sync from Azure naming standards
 * 🧩 Extensible provider model for naming rules and slug resolution
 
@@ -48,6 +49,7 @@ graph TD
 * `POST /api/claim` — generate and reserve a name
 * `GET  /api/slug?resource_type=` — resolve the slug for a resource type
 * `POST /api/release` — release an existing name
+* `POST /api/claims/remediate` — admin-only orphan or purge remediation for an existing claim
 * `GET  /api/audit?name=` — audit a single name
 * `GET  /api/audit_bulk?...` — audit a user/project/time
 * `POST /api/slug_sync` — manually refresh slugs (default provider updates Table Storage)
@@ -64,7 +66,7 @@ Assign one of the custom app roles to callers in Entra ID:
 | ---- | ----------- |
 | **Sanmar Naming Reader** | View OpenAPI docs and query audits for your own activity. |
 | **Sanmar Naming Contributor** | Generate/release names and query audits. |
-| **Sanmar Naming Admin** | Everything above plus slug sync and cross-user audits. |
+| **Sanmar Naming Admin** | Everything above plus slug sync, cross-user audits, and orphan/purge remediation. |
 
 Tokens are validated server-side; no function keys are required.
 
