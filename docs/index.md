@@ -43,6 +43,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 - `POST /api/claim` — Generate and reserve a name
 - `GET  /api/slug` — Resolve slug for resource type
 - `POST /api/release` — Release/recycle a name
+- `POST /api/claims/remediate` — Admin orphan/purge remediation for an existing claim
 - `GET  /api/audit` — Query audit logs
 - `GET  /api/audit_bulk` — Bulk audit queries
 - `POST /api/slug_sync` — Refresh slug mappings
@@ -83,6 +84,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 | Document | Purpose |
 |----------|---------|
 | **[Deployment Checklist](05-operations/deployment.md)** | `environs-iac` provisioning, code publish workflow, and go-live steps |
+| **[Operator Cutover Plan](05-operations/operator-cutover-plan.md)** | Operator-owned Azure DevOps enforcement and retired GitHub shutdown steps |
 | **[Security & Compliance](05-operations/SECURITY.md)** | Security model, encryption, and compliance considerations |
 | **[Security Audit Report](05-operations/security-audit-2025-10-16.md)** | Professional security assessment results |
 | **[Cost Estimation](05-operations/cost-estimate.md)** | 10-year cost projection and optimization strategies |

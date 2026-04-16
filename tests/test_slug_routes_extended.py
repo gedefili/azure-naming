@@ -160,20 +160,29 @@ class TestPerformSlugSync:
         assert status == 200
         assert "1 created" in msg
         assert len(table.upserted) == 1
+        assert table.upserted[0]["ResourceType"] == "storage_account"
+        assert table.upserted[0]["Source"] == "microsoft_caf"
 
     def test_updates_existing(self, monkeypatch):
         table = FakeTable({
-            ("slug", "st"): {"PartitionKey": "slug", "RowKey": "st", "FullName": "old_name"},
+            ("slug", "st"): {"PartitionKey": "slug", "RowKey": "st", "FullName": "old_name", "ResourceType": "old_name"},
         })
         monkeypatch.setattr(slug_routes, "get_all_remote_slugs", lambda: {"st": "storage_account"})
         monkeypatch.setattr(slug_routes, "get_table_client", lambda name: table)
         status, msg = slug_routes._perform_slug_sync()
         assert status == 200
         assert "1 updated" in msg
+        assert table.updated[0]["ResourceType"] == "storage_account"
 
     def test_existing_unchanged(self, monkeypatch):
         table = FakeTable({
-            ("slug", "st"): {"PartitionKey": "slug", "RowKey": "st", "FullName": "storage_account"},
+            ("slug", "st"): {
+                "PartitionKey": "slug",
+                "RowKey": "st",
+                "FullName": "storage_account",
+                "ResourceType": "storage_account",
+                "Source": "microsoft_caf",
+            },
         })
         monkeypatch.setattr(slug_routes, "get_all_remote_slugs", lambda: {"st": "storage_account"})
         monkeypatch.setattr(slug_routes, "get_table_client", lambda name: table)

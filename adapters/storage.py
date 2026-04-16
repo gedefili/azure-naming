@@ -95,6 +95,8 @@ def claim_name(
     table = get_table_client("ClaimedNames")
     partition_key = f"{region.lower()}-{environment.lower()}"
     
+    existing = None
+
     # Check if entity already exists
     try:
         existing = table.get_entity(partition_key=partition_key, row_key=name)
@@ -107,13 +109,26 @@ def claim_name(
         # Entity doesn't exist, will create it
         pass
     
+    claimed_at = datetime.now(tz=timezone.utc).isoformat()
+    state_version = 1
+    if existing is not None:
+        try:
+            state_version = int(existing.get("StateVersion", 0)) + 1
+        except (TypeError, ValueError):
+            state_version = 1
+
     entity = {
         "PartitionKey": partition_key,
         "RowKey": name,
         "InUse": True,
         "ResourceType": resource_type,
         "ClaimedBy": claimed_by,
-        "ClaimedAt": datetime.now(tz=timezone.utc).isoformat(),
+        "ClaimedAt": claimed_at,
+        "ClaimState": "claimed",
+        "StateChangedAt": claimed_at,
+        "StateChangedBy": claimed_by,
+        "StateVersion": state_version,
+        "LastLifecycleAction": "claimed",
     }
 
     if metadata:
@@ -121,17 +136,23 @@ def claim_name(
         _RESERVED_KEYS = {
             "PartitionKey", "RowKey", "InUse", "ClaimedBy", "ClaimedAt",
             "ReleasedBy", "ReleasedAt", "ReleaseReason", "Timestamp",
+            "ClaimState", "StateChangedAt", "StateChangedBy", "StateVersion",
+            "LastLifecycleAction", "OrphanedBy", "OrphanedAt", "OrphanReason",
             "odata.metadata", "odata.type", "odata.etag", "etag",
         }
         filtered = {k: v for k, v in metadata.items() if k not in _RESERVED_KEYS}
         entity.update(filtered)
 
-    # Use INSERT mode to create only if not exists (prevents overwrite)
-    # If entity already exists, this raises ResourceExistsError
-    try:
-        table.create_entity(entity=entity)
-    except ResourceExistsError:
-        # Entity exists from another thread/request, fail gracefully
-        raise ResourceExistsError(
-            f"Name {name} was claimed by another request before this one completed"
-        )
+    if existing is None:
+        # Use INSERT mode to create only if not exists (prevents overwrite)
+        # If entity already exists, this raises ResourceExistsError
+        try:
+            table.create_entity(entity=entity)
+        except ResourceExistsError:
+            # Entity exists from another thread/request, fail gracefully
+            raise ResourceExistsError(
+                f"Name {name} was claimed by another request before this one completed"
+            )
+        return
+
+    table.update_entity(entity=entity, mode=UpdateMode.REPLACE)

@@ -19,9 +19,9 @@ Users send authenticated HTTPS requests to Function endpoints, which validate to
 | Feature | Description |
 |---------|-------------|
 | **Name Generation** | RESTful claim endpoint (`POST /api/claim`) accepts resource type, region, environment, and optional metadata to generate unique, compliant names following JSON-defined rules |
-| **Name Lifecycle** | Names transition through states: claimed (in-use), released (recyclable), with full audit trail of all operations |
+| **Name Lifecycle** | Names transition through states: claimed (in-use), released (recyclable), orphaned (admin-remediated and reusable), or purged (admin-removed), with full audit trail of all operations |
 | **Slug Resolution** | Provider chain resolves resource type slugs (e.g., `storage_account` → `stg`) with pluggable sources and Table Storage fallback |
-| **Audit Logging** | Every claim, release, and sync operation logged with user identity, timestamp, and metadata in `AuditLogs` table |
+| **Audit Logging** | Every claim, release, orphan, purge, and sync operation logged with user identity, timestamp, state transition metadata, and custom fields in `AuditLogs` table |
 | **Role-Based Access** | Three Entra ID roles grant granular permissions: read-only access, contributor (full API), or admin (cross-user audits) |
 | **Extensible Rules** | Naming rules in `/rules/*.json` define templates, patterns, and allowed values per resource type and region |
 
@@ -30,13 +30,13 @@ Users send authenticated HTTPS requests to Function endpoints, which validate to
 **ClaimedNames Table:**
 - Partition Key: `{region}-{environment}` (e.g., `wus2-prod`)
 - Row Key: Generated name (e.g., `stg-sds-prod-wus2-001`)
-- Columns: `InUse` (bool), `ResourceType`, `ClaimedBy` (user), `ClaimedAt` (timestamp), `Metadata` (JSON), `ReleasedAt` (nullable)
+- Columns: `InUse` (bool), `ResourceType`, `ClaimedBy` (user), `ClaimedAt` (timestamp), `ClaimState`, `StateVersion`, `StateChangedAt`, `StateChangedBy`, remediation fields such as `ReleasedAt` / `OrphanedAt`, plus optional metadata
 - Concurrency: ETag-based optimistic locking prevents duplicate claims
 
 **AuditLogs Table:**
 - Partition Key: `{user_id}` (Entra object ID)
 - Row Key: Reverse timestamp + operation ID for time-ordered queries
-- Columns: Operation (claim/release/sync), Name, ResourceType, Status, Error, Metadata
+- Columns: Operation (claim/release/orphan/purge/sync), Name, ResourceType, state transition metadata, and audit context fields
 - Purpose: Complete audit trail for compliance and debugging
 
 **SlugMappings Table:**
@@ -59,6 +59,7 @@ Users send authenticated HTTPS requests to Function endpoints, which validate to
 |----------|--------|---------|------|
 | `/api/claim` | POST | Generate and reserve a name | Contributor+ |
 | `/api/release` | POST | Return a name to available pool | Contributor+ |
+| `/api/claims/remediate` | POST | Mark a claim orphaned or purge it entirely | Admin |
 | `/api/slug` | GET | Resolve resource type slug | Reader+ |
 | `/api/audit` | GET | Query audit logs for own activity | Reader+ |
 | `/api/audit_bulk` | GET | Query audit logs by user/project | Admin |
