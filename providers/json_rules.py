@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Sequence
 
-from core.naming_rules import DisplayField, NamingRule, NamingRuleProvider
+from core.naming_rule_types import DisplayField, NamingRule, NamingRuleProvider
+from core.resource_types import canonicalize_resource_type
 
 
 @dataclass(slots=True)
@@ -68,7 +69,7 @@ class JsonRuleProvider(NamingRuleProvider):
     def get_rule(self, resource_type: str) -> NamingRule:
         if self._default_rule is None:
             raise RuntimeError("Naming rules have not been loaded.")
-        key = resource_type.lower()
+        key = canonicalize_resource_type(resource_type)
         if key in self._resource_rules:
             return self._resource_rules[key]
         if key in {"default", "__default__"}:

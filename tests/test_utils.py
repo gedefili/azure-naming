@@ -2,6 +2,8 @@ import json
 import os
 import pathlib
 import sys
+import types
+import importlib
 
 import pytest
 
@@ -307,3 +309,55 @@ def test_describe_rule_exposes_template_details():
 def test_list_resource_types_includes_default():
     types = naming_rules.list_resource_types()
     assert "default" in types
+
+
+def test_dictionary_rule_provider_supports_alias_lookup():
+    default_rule = naming_rules.NamingRule(segments=("slug",), max_length=10)
+    rg_rule = naming_rules.NamingRule(segments=("slug", "region"), max_length=20)
+    provider = naming_rules.DictionaryRuleProvider(default_rule, {"resource_group": rg_rule})
+
+    assert provider.get_rule("Microsoft.Resources/resourceGroups") is rg_rule
+    assert provider.get_rule("default") is default_rule
+    assert "default" in provider.list_resource_types()
+
+
+def test_resolve_rules_path_prefers_environment_override(monkeypatch, tmp_path):
+    override = tmp_path / "custom-rules"
+    monkeypatch.setenv("NAMING_RULES_PATH", str(override))
+    monkeypatch.delenv("NAMING_RULES_FILE", raising=False)
+
+    assert naming_rules._resolve_rules_path() == override
+
+
+def test_load_provider_from_env_rejects_unknown_provider(monkeypatch):
+    monkeypatch.setenv("NAMING_RULE_PROVIDER", "custom.module.Provider")
+
+    assert naming_rules._load_provider_from_env() is None
+
+
+def test_load_provider_from_env_handles_import_failure(monkeypatch):
+    monkeypatch.setenv("NAMING_RULE_PROVIDER", "providers.json_rules.JsonRuleProvider")
+    monkeypatch.setattr(naming_rules.importlib, "import_module", lambda _name: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    assert naming_rules._load_provider_from_env() is None
+
+
+def test_describe_rule_raises_for_unknown_type():
+    with pytest.raises(KeyError):
+        naming_rules.describe_rule("definitely_unknown_type")
+
+
+def test_list_resource_types_deduplicates_default_from_provider():
+    class DuplicateDefaultProvider:
+        def get_rule(self, resource_type: str):
+            return naming_rules.DEFAULT_RULE
+
+        def list_resource_types(self):
+            return ("default", "default", "storage_account")
+
+    original_provider = naming_rules.get_rule_provider()
+    try:
+        naming_rules.set_rule_provider(DuplicateDefaultProvider())
+        assert naming_rules.list_resource_types() == ("default", "storage_account")
+    finally:
+        naming_rules.set_rule_provider(original_provider)

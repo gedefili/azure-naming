@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional
 
 from adapters import storage as _storage
+from core.resource_types import normalise_resource_type
 
 TABLE_NAME = "SlugMappings"
 PARTITION_KEY = "slug"
@@ -44,20 +45,6 @@ def get_table_client(table_name: str = TABLE_NAME):
     return _storage.get_table_client(table_name)
 
 
-def _normalise_resource_type(resource_type: str) -> tuple[str, str]:
-    """Return a tuple of (canonical, human_readable) variants for lookup.
-
-    canonical: underscores, lower-case (e.g. 'resource_group')
-    human_readable: spaces, lower-case (e.g. 'resource group')
-    
-    Note: Input validation and OData escaping happens in get_slug().
-    """
-
-    canonical = resource_type.replace(" ", "_").lower()
-    human = resource_type.replace("_", " ").lower()
-    return canonical, human
-
-
 def _escape_odata_string(value: str) -> str:
     """Escape a string for safe use in OData filter expressions.
     
@@ -76,7 +63,7 @@ def get_slug(resource_type: str) -> str:
     Uses proper OData escaping to prevent injection attacks.
     """
 
-    canonical, human = _normalise_resource_type(resource_type)
+    canonical, _ = normalise_resource_type(resource_type)
     table = get_table_client(TABLE_NAME)
 
     # Build OData filter with proper escaping

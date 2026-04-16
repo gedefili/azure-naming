@@ -23,6 +23,7 @@ from app.dependencies import (
     ResourceNotFoundError,
     require_role,
 )
+from core.resource_types import canonicalize_resource_type
 from core.slug_service import get_slug
 
 
@@ -30,9 +31,10 @@ def _resolve_slug_payload(resource_type: str) -> Dict[str, str]:
     cleaned = resource_type.strip()
     if not cleaned:
         raise ValueError("resource_type cannot be empty")
-    slug_value = get_slug(cleaned)
+    canonical_resource_type = canonicalize_resource_type(cleaned)
+    slug_value = get_slug(canonical_resource_type)
     resource_metadata: Dict[str, Optional[str]] = {}
-    resolved_resource_type = cleaned
+    resolved_resource_type = canonical_resource_type
 
     try:
         table = get_table_client(SLUG_TABLE_NAME)
@@ -41,13 +43,15 @@ def _resolve_slug_payload(resource_type: str) -> Dict[str, str]:
         try:
             entity = table.get_entity(partition_key=SLUG_PARTITION_KEY, row_key=slug_value)
         except ResourceNotFoundError:
-            escaped_resource = cleaned.lower().replace("'", "''")
+            escaped_resource = canonical_resource_type.replace("'", "''")
             filter_query = f"ResourceType eq '{escaped_resource}'"
             entities = list(table.query_entities(query_filter=filter_query))
             entity = entities[0] if entities else None
 
         if entity:
-            resolved_resource_type = str(entity.get("ResourceType") or resolved_resource_type)
+            resolved_resource_type = canonicalize_resource_type(
+                str(entity.get("ResourceType") or resolved_resource_type)
+            )
             # Include all non-personal metadata fields present on the entity.
             for key, val in entity.items():
                 if key in {"PartitionKey", "RowKey"}:
@@ -62,7 +66,7 @@ def _resolve_slug_payload(resource_type: str) -> Dict[str, str]:
         logging.exception("[slug_lookup] Failed to hydrate slug metadata.")
 
     payload: Dict[str, str] = {
-        "resourceType": resolved_resource_type.strip().lower(),
+        "resourceType": resolved_resource_type,
         "slug": slug_value,
     }
 

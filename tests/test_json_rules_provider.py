@@ -151,6 +151,24 @@ def test_provider_accepts_single_file(tmp_path):
     assert provider.get_rule("default").max_length == 50
 
 
+def test_provider_normalizes_azure_resource_type_aliases():
+    provider = JsonRuleProvider(rules_path=ROOT / "rules")
+
+    assert provider.get_rule("microsoft.resources/resourcegroups") is provider.get_rule("resource_group")
+    assert provider.get_rule("microsoft.network/virtualnetworks") is provider.get_rule("virtual_network")
+
+
+def test_provider_includes_new_resource_types_and_sbx_environment():
+    provider = JsonRuleProvider(rules_path=ROOT / "rules")
+
+    resource_types = set(provider.list_resource_types())
+    assert {"resource_group", "virtual_network", "subnet", "network_security_group"}.issubset(resource_types)
+
+    provider.get_rule("resource_group").validate_payload(
+        {"region": "wus2", "environment": "sbx", "system": "erp"}
+    )
+
+
 @pytest.mark.parametrize("invalid", [None, 123, "text"])
 def test_provider_rejects_invalid_resource_config(tmp_path, invalid):
     payload = {

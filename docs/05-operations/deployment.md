@@ -155,6 +155,18 @@ The `slug_sync_timer` function runs weekly at **Sunday 4:00 AM UTC** to refresh 
 
 ## 💻 Local Development
 
+The local devcontainer and CI Python version should match the deployed Azure
+Functions runtime. Azure Functions support for newer Python versions can lag the
+base devcontainer images published by Microsoft, and testing on a newer local
+runtime can hide compatibility issues until publish time.
+
+Current policy:
+
+* keep local devcontainer, CI, and Function App runtime aligned on Python 3.11
+* only upgrade after Azure Functions exposes the target version for Linux
+	Function Apps and the runtime is intentionally updated across Terraform,
+	workflows, and the devcontainer together
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate

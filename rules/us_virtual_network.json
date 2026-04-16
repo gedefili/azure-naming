@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "name": "US key vault overlay",
+    "name": "US virtual network overlay",
     "priority": 100,
     "enabled": true,
-    "description": "Stricter validation for US-based key vaults. Toggle `enabled` to false to deactivate."
+    "description": "Validation for US-based virtual networks used by provider end-to-end tests."
   },
   "resources": {
-    "key_vault": {
-      "max_length": 24,
+    "virtual_network": {
+      "max_length": 64,
       "require_sanmar_prefix": true,
       "segments": [
         "slug",
@@ -18,7 +18,7 @@
         "index"
       ],
       "display": [
-        { "key": "name", "label": "Key Vault Name", "optional": false },
+        { "key": "name", "label": "Virtual Network Name", "optional": false },
         { "key": "resourceType", "label": "Resource Type", "optional": false },
         { "key": "slug", "label": "Slug", "optional": false },
         { "key": "environment", "label": "Environment", "optional": false },
@@ -27,7 +27,7 @@
         { "key": "index", "label": "Index" }
       ],
       "name_template": "{region}{environment}{slug}{sanmar_prefix}{system}{subsystem}{index}",
-      "summary_template": "Key vault '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
+      "summary_template": "Virtual network '{name}' for system '{system_upper}' in {environment_upper}-{region_upper}",
       "validators": {
         "allowed_values": {
           "region": ["wus", "wus2", "eus", "eus1"],

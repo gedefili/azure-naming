@@ -17,6 +17,7 @@ from adapters.audit_logs import write_audit_log
 from adapters.storage import check_name_exists, claim_name
 from core.name_generator import build_name
 from core.naming_rules import NamingRule, load_naming_rule
+from core.resource_types import canonicalize_resource_type
 from core.user_settings import settings_service
 from core.validation import validate_name
 from core.slug_service import get_slug
@@ -216,7 +217,10 @@ def generate_and_claim_name(payload: Dict[str, Any], requested_by: str) -> NameG
 
     normalized_payload, optional_segments = _normalise_payload(payload_with_defaults)
 
-    resource_type = normalized_payload["resource_type"].lower()
+    resource_type = canonicalize_resource_type(str(normalized_payload["resource_type"]))
+    normalized_payload["resource_type"] = resource_type
+    if "resourceType" in normalized_payload:
+        normalized_payload["resourceType"] = resource_type
     region = normalized_payload["region"].lower()
     environment = normalized_payload["environment"].lower()
 

@@ -31,7 +31,7 @@
       "validators": {
         "allowed_values": {
           "region": ["wus", "wus2", "eus", "eus1"],
-          "environment": ["prd", "stg", "tst", "uat", "alt", "dev"]
+          "environment": ["prd", "stg", "tst", "uat", "alt", "dev", "sbx"]
         },
         "require_any": {
           "system": ["system", "system_short"]
