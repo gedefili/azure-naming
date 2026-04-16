@@ -69,6 +69,11 @@ Set these secret variables either in the same variable group or directly on the 
 
 The principal behind the deploy credentials must also be assigned the Azure Naming API's `admin` app role. The deployment stage requests a bearer token for the configured `AZURE_CLIENT_ID` and calls `POST /api/slug_sync` after every successful publish.
 
+The principal behind `AZURE_CREDENTIALS` must also be assigned the Azure Naming
+API's `admin` app role. The deploy workflow now requests a bearer token for the
+configured `AZURE_CLIENT_ID` and calls `POST /api/slug_sync` after every
+successful publish.
+
 ### 4. Publish the application code
 
 The application code is deployed from this repository when the Azure DevOps `azure-naming` pipeline runs on pushes to `main`.
