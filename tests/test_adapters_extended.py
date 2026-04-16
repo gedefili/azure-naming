@@ -35,8 +35,9 @@ class TestReleaseName:
         result = release_mod.release_name("wus2", "dev", "myname", "user1")
         assert result is True
         assert updated["InUse"] is False
+        assert updated["ClaimState"] == "released"
         assert updated["ReleasedBy"] == "user1"
-        assert "ReleasedOn" in updated
+        assert "ReleasedAt" in updated
 
     def test_not_found(self, monkeypatch):
         from adapters import release_name as release_mod
@@ -153,7 +154,10 @@ class TestGetAllRemoteSlugs:
         result = slug_fetcher.get_all_remote_slugs()
 
         assert result["app"] == "app_service"
+        assert result["ca"] == "container_app"
+        assert result["cae"] == "container_app_environment"
         assert result["cosmos"] == "cosmosdb_account"
+        assert result["snet"] == "subnet"
         assert result["sql"] == "sql_server"
 
     def test_local_overrides_replace_conflicting_caf_entries(self, monkeypatch):

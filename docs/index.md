@@ -43,6 +43,7 @@ Welcome to the comprehensive documentation hub for the Azure Naming Function pro
 - `POST /api/claim` — Generate and reserve a name
 - `GET  /api/slug` — Resolve slug for resource type
 - `POST /api/release` — Release/recycle a name
+- `POST /api/claims/remediate` — Admin orphan/purge remediation for an existing claim
 - `GET  /api/audit` — Query audit logs
 - `GET  /api/audit_bulk` — Bulk audit queries
 - `POST /api/slug_sync` — Refresh slug mappings
