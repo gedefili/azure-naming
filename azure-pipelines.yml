@@ -19,6 +19,7 @@ trigger:
   tags:
     include:
       - v*
+      - provider-v*
 
 pr:
   branches:
@@ -286,6 +287,52 @@ stages:
               ACR_NAME: $(acrName)
               ACR_IMAGE_REPOSITORY: $(acrImageRepository)
 
+  - stage: publish_provider
+    displayName: Publish Terraform provider
+    dependsOn: validate
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/provider-v'))
+    jobs:
+      - job: provider
+        displayName: Build and publish sanmar/naming provider
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              provider_version="${BUILD_SOURCEBRANCH#refs/tags/provider-v}"
+              if [ -z "$provider_version" ]; then
+                echo "Unable to determine provider version from tag $BUILD_SOURCEBRANCH" >&2
+                exit 1
+              fi
+
+              acr_sp_id="${ACR_SERVICE_PRINCIPAL_ID:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_ID}"
+              acr_sp_secret="${ACR_SERVICE_PRINCIPAL_SECRET:-$PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET}"
+              acr_tenant_id="${ACR_TENANT_ID:-$PRIMARY_AZURE_TENANT_ID}"
+
+              if [ -z "$acr_sp_id" ] || [ -z "$acr_sp_secret" ] || [ -z "$acr_tenant_id" ]; then
+                echo "ACR credentials are not configured for provider publishing." >&2
+                exit 1
+              fi
+
+              az login --service-principal \
+                --username "$acr_sp_id" \
+                --password "$acr_sp_secret" \
+                --tenant "$acr_tenant_id"
+
+              az account set --subscription "$ACR_SUBSCRIPTION_ID"
+
+              bash tools/publish_provider_acr.sh --version "$provider_version"
+            displayName: Publish provider to ACR
+            env:
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_ID: $(azureServicePrincipalId)
+              PRIMARY_AZURE_SERVICE_PRINCIPAL_SECRET: $(azureServicePrincipalSecret)
+              PRIMARY_AZURE_TENANT_ID: $(azureTenantId)
+              ACR_SERVICE_PRINCIPAL_ID: $(acrServicePrincipalId)
+              ACR_SERVICE_PRINCIPAL_SECRET: $(acrServicePrincipalSecret)
+              ACR_TENANT_ID: $(acrTenantId)
+              ACR_SUBSCRIPTION_ID: $(acrSubscriptionId)
   - stage: release_artifact
     displayName: Publish release artifact
     dependsOn: validate

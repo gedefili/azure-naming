@@ -24,6 +24,11 @@ from app.routes.audit import (
 )
 
 
+def _fn(builder):
+    """Extract the user function from an Azure Functions FunctionBuilder."""
+    return builder._function.get_user_function()
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -162,12 +167,12 @@ class TestAuditName:
     def test_auth_error(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", mock.Mock(side_effect=_make_auth_error()))
         req = self._make_request(params={"region": "wus2", "environment": "dev", "name": "x"})
-        resp = audit_routes.audit_name(req)
+        resp = _fn(audit_routes.audit_name)(req)
         assert resp.status_code == 401
 
     def test_missing_params(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["reader"]))
-        resp = audit_routes.audit_name(self._make_request(params={}))
+        resp = _fn(audit_routes.audit_name)(self._make_request(params={}))
         assert resp.status_code == 400
 
     def test_not_found(self, monkeypatch):
@@ -175,14 +180,14 @@ class TestAuditName:
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["reader"]))
         monkeypatch.setattr(audit_routes, "get_table_client", mock.Mock(side_effect=ResourceNotFoundError("nope")))
         req = self._make_request(params={"region": "wus2", "environment": "dev", "name": "gone"})
-        resp = audit_routes.audit_name(req)
+        resp = _fn(audit_routes.audit_name)(req)
         assert resp.status_code == 404
 
     def test_storage_error(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["reader"]))
         monkeypatch.setattr(audit_routes, "get_table_client", mock.Mock(side_effect=RuntimeError("boom")))
         req = self._make_request(params={"region": "wus2", "environment": "dev", "name": "x"})
-        resp = audit_routes.audit_name(req)
+        resp = _fn(audit_routes.audit_name)(req)
         assert resp.status_code == 500
 
     def test_forbidden(self, monkeypatch):
@@ -196,7 +201,7 @@ class TestAuditName:
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: table)
         monkeypatch.setattr(audit_routes, "is_authorized", lambda roles, uid, cb, rb: False)
         req = self._make_request(params={"region": "wus2", "environment": "dev", "name": "res"})
-        resp = audit_routes.audit_name(req)
+        resp = _fn(audit_routes.audit_name)(req)
         assert resp.status_code == 403
 
     def test_success(self, monkeypatch):
@@ -206,6 +211,7 @@ class TestAuditName:
             "ResourceType": "vm", "InUse": True,
             "ClaimedAt": "2025-01-01", "ReleasedAt": None,
             "ReleaseReason": None, "Slug": "vm",
+            "ClaimState": "claimed", "StateChangedAt": "2025-01-01", "StateChangedBy": "u1", "StateVersion": 2,
             "Project": "proj1", "Purpose": "test",
             "Subsystem": None, "System": None, "Index": None,
             "CustomField": "custom_value",
@@ -215,11 +221,13 @@ class TestAuditName:
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: table)
         monkeypatch.setattr(audit_routes, "is_authorized", lambda roles, uid, cb, rb: True)
         req = self._make_request(params={"region": "wus2", "environment": "dev", "name": "res"})
-        resp = audit_routes.audit_name(req)
+        resp = _fn(audit_routes.audit_name)(req)
         assert resp.status_code == 200
         body = json.loads(resp.get_body())
         assert body["name"] == "res"
         assert body["resource_type"] == "vm"
+        assert body["claim_state"] == "claimed"
+        assert body["state_version"] == 2
         assert "custom_field" in body
 
 
@@ -233,30 +241,30 @@ class TestAuditBulk:
 
     def test_auth_error(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", mock.Mock(side_effect=_make_auth_error()))
-        resp = audit_routes.audit_bulk(self._make_request())
+        resp = _fn(audit_routes.audit_bulk)(self._make_request())
         assert resp.status_code == 401
 
     def test_forbidden_non_elevated(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["reader"]))
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "other"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "other"}))
         assert resp.status_code == 403
 
     def test_elevated_can_query_other_users(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["admin"]))
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: FakeAuditTable())
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "other"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "other"}))
         assert resp.status_code == 200
 
     def test_self_query_allowed(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("alice", ["reader"]))
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: FakeAuditTable())
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "alice"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "alice"}))
         assert resp.status_code == 200
 
     def test_storage_error(self, monkeypatch):
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["admin"]))
         monkeypatch.setattr(audit_routes, "get_table_client", mock.Mock(side_effect=RuntimeError("boom")))
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "u1"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "u1"}))
         assert resp.status_code == 500
 
     def test_success_with_entities(self, monkeypatch):
@@ -264,17 +272,20 @@ class TestAuditBulk:
             ("name1", "row1"): {
                 "PartitionKey": "name1", "RowKey": "row1",
                 "User": "alice", "Action": "claimed", "Note": "",
+                "StateBefore": "released", "StateAfter": "claimed", "StateVersion": 4,
                 "EventTime": datetime(2025, 1, 15, 10, 0, 0),
             },
         }
         table = FakeAuditTable(entities)
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("alice", ["reader"]))
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: table)
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "alice"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "alice"}))
         assert resp.status_code == 200
         body = json.loads(resp.get_body())
         assert len(body["results"]) == 1
         assert body["results"][0]["user"] == "alice"
+        assert body["results"][0]["state_before"] == "released"
+        assert body["results"][0]["state_after"] == "claimed"
 
     def test_event_time_string(self, monkeypatch):
         entities = {
@@ -287,7 +298,7 @@ class TestAuditBulk:
         table = FakeAuditTable(entities)
         monkeypatch.setattr(audit_routes, "require_role", lambda h, min_role: ("u1", ["admin"]))
         monkeypatch.setattr(audit_routes, "get_table_client", lambda name: table)
-        resp = audit_routes.audit_bulk(self._make_request(params={"user": "u1"}))
+        resp = _fn(audit_routes.audit_bulk)(self._make_request(params={"user": "u1"}))
         assert resp.status_code == 200
         body = json.loads(resp.get_body())
         assert body["results"][0]["timestamp"] == "2025-01-01T00:00:00"

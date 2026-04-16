@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 try:
-    from azure.core.exceptions import AzureError
-    from azure.data.tables import TableServiceClient, UpdateMode
+    from azure.core.exceptions import AzureError  # type: ignore[assignment]
+    from azure.data.tables import TableServiceClient, UpdateMode  # type: ignore[assignment]
 except ImportError:  # pragma: no cover - used during unit tests without Azure SDK
     class AzureError(Exception):
         """Fallback AzureError when the Azure SDK is unavailable."""
@@ -20,6 +20,8 @@ except ImportError:  # pragma: no cover - used during unit tests without Azure S
             return "MERGE"
 
     TableServiceClient = None  # type: ignore
+
+UpdateMode = UpdateMode  # type: Any
 
 from adapters.slug_fetcher import get_all_remote_slugs
 from adapters.storage import get_table_client
@@ -51,7 +53,7 @@ def sync_slug_definitions(connection_string: Optional[str] = None) -> int:
             "Slug": slug,
             "ResourceType": canonical_name,
             "FullName": canonical_name,
-            "Source": "azure_defined_specs",
+            "Source": "microsoft_caf",
         }
         try:
             table.upsert_entity(mode=UpdateMode.MERGE, entity=entity)

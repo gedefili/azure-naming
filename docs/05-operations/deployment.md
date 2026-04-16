@@ -104,6 +104,20 @@ The pipeline behavior is:
 
 The pipeline uses Azure Container Registry build tasks, so the build agent only needs Azure login permissions and does not need a local Docker daemon.
 
+### Terraform provider publishing
+
+The repository also publishes the `sanmar/naming` Terraform provider through the
+same Azure DevOps pipeline, but only for tags in the `provider-v*` namespace.
+
+The provider flow is:
+
+* merge the provider change into `main`
+* create an annotated tag such as `provider-v1.2.0`
+* let the `publish_provider` stage run `tools/publish_provider_acr.sh --version 1.2.0`
+
+This keeps application deployment tags (`v*`) separate from provider release
+tags while reusing the same ACR credentials.
+
 Notes:
 
 * the ACR credentials can reuse the main deploy principal if it has rights in both subscriptions

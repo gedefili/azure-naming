@@ -38,6 +38,12 @@ class FakeTableClient:
         key = (entity["PartitionKey"], entity["RowKey"])
         self._entities[key] = entity
 
+    def delete_entity(self, partition_key, row_key):
+        key = (partition_key, row_key)
+        if key not in self._entities:
+            raise storage.ResourceNotFoundError("not found")
+        del self._entities[key]
+
     def create_table_if_not_exists(self, **kwargs):
         pass
 
@@ -170,6 +176,8 @@ class TestClaimName:
         entity = fake_svc._tables["ClaimedNames"].get_entity("wus2-dev", "newname")
         assert entity["InUse"] is True
         assert entity["ClaimedBy"] == "user@test.com"
+        assert entity["ClaimState"] == "claimed"
+        assert entity["StateVersion"] == 1
 
     def test_claim_already_in_use(self):
         fake_svc = FakeTableServiceClient()
@@ -225,3 +233,31 @@ class TestClaimName:
         # Second claim for same name — entity already created
         with pytest.raises(storage.ResourceExistsError):
             storage.claim_name("wus2", "dev", "race", "vm", "user2@test.com")
+
+    def test_reclaim_reuses_existing_released_name(self):
+        fake_svc = FakeTableServiceClient()
+        fake_table = FakeTableClient({
+            ("wus2-dev", "reusable"): {
+                "PartitionKey": "wus2-dev",
+                "RowKey": "reusable",
+                "InUse": False,
+                "ClaimedBy": "user1@test.com",
+                "ClaimedAt": "2026-01-01T00:00:00+00:00",
+                "ClaimState": "released",
+                "StateVersion": 3,
+                "ReleasedBy": "user1@test.com",
+                "ReleasedAt": "2026-01-02T00:00:00+00:00",
+            }
+        })
+        fake_svc._tables["ClaimedNames"] = fake_table
+        storage._service = fake_svc
+
+        storage.claim_name("wus2", "dev", "reusable", "vm", "user2@test.com", metadata={"Project": "proj1"})
+
+        entity = fake_svc._tables["ClaimedNames"].get_entity("wus2-dev", "reusable")
+        assert entity["InUse"] is True
+        assert entity["ClaimedBy"] == "user2@test.com"
+        assert entity["ClaimState"] == "claimed"
+        assert entity["StateVersion"] == 4
+        assert entity["Project"] == "proj1"
+        assert "ReleasedBy" not in entity
