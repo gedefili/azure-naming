@@ -17,6 +17,7 @@ func TestClaimLifecycle(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", r.Method)
 		}
+		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ClaimNameResponse{
 			Name:         "wus2prdfoo",
@@ -28,7 +29,7 @@ func TestClaimLifecycle(t *testing.T) {
 		})
 	})
 	mux.HandleFunc("/api/release", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/api/audit", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("name") == "gone" {
@@ -141,5 +142,25 @@ func TestRetryLogic(t *testing.T) {
 	}
 	if attempts != 2 {
 		t.Fatalf("expected 2 attempts, got %d", attempts)
+	}
+}
+
+func TestClaimNameRejectsUnexpectedStatus(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/claim", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewAPIClient(context.Background(), srv.URL, "", RetryConfig{MaxAttempts: 1, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond})
+	if err != nil {
+		t.Fatalf("NewAPIClient: %v", err)
+	}
+
+	_, err = client.ClaimName(context.Background(), ClaimNameRequest{ResourceType: "storage_account", Region: "wus2", Environment: "prd"})
+	if err == nil {
+		t.Fatal("expected ClaimName to reject HTTP 202")
 	}
 }

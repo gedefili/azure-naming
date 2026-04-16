@@ -35,8 +35,9 @@ class TestReleaseName:
         result = release_mod.release_name("wus2", "dev", "myname", "user1")
         assert result is True
         assert updated["InUse"] is False
+        assert updated["ClaimState"] == "released"
         assert updated["ReleasedBy"] == "user1"
-        assert "ReleasedOn" in updated
+        assert "ReleasedAt" in updated
 
     def test_not_found(self, monkeypatch):
         from adapters import release_name as release_mod
@@ -114,21 +115,16 @@ class TestGetAllRemoteSlugs:
     def test_success(self, monkeypatch):
         from adapters import slug_fetcher
 
-        hcl = '''
-variable "az" {
-  default = {
-    az = {
-      storage_account = "st"
-      virtual_machine = "vm"
-    }
-  }
-}
-'''
-        # Construct text with az = { block
-        hcl_text = 'az = {\n  storage_account = "st"\n  virtual_machine = "vm"\n}\n'
+        md_text = (
+            "## Storage\n\n"
+            "| Resource | Resource provider namespace | Abbreviation |\n"
+            "|--|--|--|\n"
+            "| Storage account | `Microsoft.Storage/storageAccounts` | `st` |\n"
+            "| Virtual machine | `Microsoft.Compute/virtualMachines` | `vm` |\n"
+        )
 
         class FakeResponse:
-            text = hcl_text
+            text = md_text
             def raise_for_status(self):
                 pass
 
@@ -136,6 +132,59 @@ variable "az" {
         result = slug_fetcher.get_all_remote_slugs()
         assert result["st"] == "storage_account"
         assert result["vm"] == "virtual_machine"
+
+    def test_applies_local_overrides(self, monkeypatch):
+        from adapters import slug_fetcher
+
+        md_text = (
+            "## Storage\n\n"
+            "| Resource | Resource provider namespace | Abbreviation |\n"
+            "|--|--|--|\n"
+            "| Storage account | `Microsoft.Storage/storageAccounts` | `st` |\n"
+        )
+
+        class FakeResponse:
+            text = md_text
+
+            def raise_for_status(self):
+                pass
+
+        monkeypatch.setattr(slug_fetcher.requests, "get", lambda url, timeout: FakeResponse())
+
+        result = slug_fetcher.get_all_remote_slugs()
+
+        assert result["app"] == "app_service"
+        assert result["ca"] == "container_app"
+        assert result["cae"] == "container_app_environment"
+        assert result["cosmos"] == "cosmosdb_account"
+        assert result["snet"] == "subnet"
+        assert result["sql"] == "sql_server"
+
+    def test_local_overrides_replace_conflicting_caf_entries(self, monkeypatch):
+        from adapters import slug_fetcher
+
+        md_text = (
+            "## Apps\n\n"
+            "| Resource | Resource provider namespace | Abbreviation |\n"
+            "|--|--|--|\n"
+            "| Web app | `Microsoft.Web/sites` | `app` |\n"
+            "| Azure Cosmos DB database | `Microsoft.DocumentDB/databaseAccounts/sqlDatabases` | `cosmos` |\n"
+            "| Azure SQL Database server | `Microsoft.Sql/servers` | `sql` |\n"
+        )
+
+        class FakeResponse:
+            text = md_text
+
+            def raise_for_status(self):
+                pass
+
+        monkeypatch.setattr(slug_fetcher.requests, "get", lambda url, timeout: FakeResponse())
+
+        result = slug_fetcher.get_all_remote_slugs()
+
+        assert result["app"] == "app_service"
+        assert result["cosmos"] == "cosmosdb_account"
+        assert result["sql"] == "sql_server"
 
     def test_fetch_failure(self, monkeypatch):
         from adapters import slug_fetcher
@@ -147,11 +196,11 @@ variable "az" {
         with pytest.raises(slug_fetcher.SlugSourceError):
             slug_fetcher.get_all_remote_slugs()
 
-    def test_missing_block(self, monkeypatch):
+    def test_no_entries_parsed(self, monkeypatch):
         from adapters import slug_fetcher
 
         class FakeResponse:
-            text = "no az block here"
+            text = "no table rows here"
             def raise_for_status(self):
                 pass
 

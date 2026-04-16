@@ -179,6 +179,13 @@ def audit_name(req: func.HttpRequest) -> func.HttpResponse:
         "released_by": entity.get("ReleasedBy"),
         "released_at": entity.get("ReleasedAt"),
         "release_reason": entity.get("ReleaseReason"),
+        "claim_state": entity.get("ClaimState"),
+        "state_changed_at": entity.get("StateChangedAt"),
+        "state_changed_by": entity.get("StateChangedBy"),
+        "state_version": entity.get("StateVersion"),
+        "orphaned_by": entity.get("OrphanedBy"),
+        "orphaned_at": entity.get("OrphanedAt"),
+        "orphan_reason": entity.get("OrphanReason"),
         "region": region,
         "environment": environment,
         "slug": entity.get("Slug"),
@@ -192,8 +199,10 @@ def audit_name(req: func.HttpRequest) -> func.HttpResponse:
     # Include any additional custom metadata that was stored
     # Exclude system fields and standard naming fields already in audit_info
     system_fields = {"PartitionKey", "RowKey", "Timestamp", "odata.metadata", "odata.type", "etag"}
-    standard_fields = {"ResourceType", "InUse", "ClaimedBy", "ClaimedAt", "ReleasedBy", "ReleasedAt", 
-                       "ReleaseReason", "Slug", "Project", "Purpose", "Subsystem", "System", "Index", "RequestedBy"}
+    standard_fields = {"ResourceType", "InUse", "ClaimedBy", "ClaimedAt", "ReleasedBy", "ReleasedAt",
+                       "ReleaseReason", "Slug", "Project", "Purpose", "Subsystem", "System", "Index", "RequestedBy",
+                       "ClaimState", "StateChangedAt", "StateChangedBy", "StateVersion",
+                       "LastLifecycleAction", "OrphanedBy", "OrphanedAt", "OrphanReason"}
     for key, value in entity.items():
         if key not in system_fields and key not in standard_fields and value is not None:
             # Convert key to snake_case for consistency in JSON response
@@ -291,6 +300,9 @@ def audit_bulk(req: func.HttpRequest) -> func.HttpResponse:
                 "project": entity.get("Project"),
                 "purpose": entity.get("Purpose"),
                 "resource_type": entity.get("ResourceType"),
+                "state_before": entity.get("StateBefore"),
+                "state_after": entity.get("StateAfter"),
+                "state_version": entity.get("StateVersion"),
             }
         )
 

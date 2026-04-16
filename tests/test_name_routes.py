@@ -71,6 +71,12 @@ class FakeTable:
             raise self._raise_on_update
         self.updated = entity
 
+    def delete_entity(self, partition_key, row_key):
+        key = (partition_key, row_key)
+        if key not in self._entities:
+            raise RuntimeError("not found")
+        del self._entities[key]
+
 
 # ---------------------------------------------------------------------------
 # _handle_claim_request
@@ -129,6 +135,8 @@ class TestReleaseName:
         resp = _fn(names_routes.release_name)(_make_request(body={"name": "myresource", "region": "wus2", "environment": "dev"}))
         assert resp.status_code == 200
         assert table.updated is not None
+        assert table.updated["ClaimState"] == "released"
+        assert table.updated["StateVersion"] == 1
 
     def test_region_env_extracted_from_name(self, monkeypatch):
         entity = {
@@ -216,3 +224,58 @@ class TestReleaseName:
         resp = _fn(names_routes.release_name)(_make_request(body={"name": "myname", "region": "wus2", "environment": "dev"}))
         assert resp.status_code == 200
         assert "CustomField" in captured["metadata"]
+        assert captured["metadata"]["StateBefore"] == "claimed"
+        assert captured["metadata"]["StateAfter"] == "released"
+
+
+class TestAdminRemediateName:
+    def test_auth_error(self, monkeypatch):
+        monkeypatch.setattr(names_routes, "require_role", mock.Mock(side_effect=_auth_error()))
+        resp = _fn(names_routes.admin_remediate_name)(_make_request(body={}))
+        assert resp.status_code == 401
+
+    def test_invalid_action(self, monkeypatch):
+        monkeypatch.setattr(names_routes, "require_role", lambda h, min_role: ("admin1", ["admin"]))
+        resp = _fn(names_routes.admin_remediate_name)(_make_request(body={"name": "myname", "action": "nope", "reason": "cleanup"}))
+        assert resp.status_code == 400
+
+    def test_missing_reason(self, monkeypatch):
+        monkeypatch.setattr(names_routes, "require_role", lambda h, min_role: ("admin1", ["admin"]))
+        resp = _fn(names_routes.admin_remediate_name)(_make_request(body={"name": "myname", "action": "orphan", "reason": ""}))
+        assert resp.status_code == 400
+
+    def test_orphan_success(self, monkeypatch):
+        entity = {
+            "PartitionKey": "wus2-dev", "RowKey": "myname",
+            "ClaimedBy": "u1", "ReleasedBy": "", "InUse": True,
+            "ResourceType": "vm", "Slug": "vm", "Project": "proj1",
+        }
+        table = FakeTable({("wus2-dev", "myname"): entity})
+        captured = {}
+        monkeypatch.setattr(names_routes, "require_role", lambda h, min_role: ("admin1", ["admin"]))
+        monkeypatch.setattr(names_routes, "get_table_client", lambda name: table)
+        monkeypatch.setattr(names_routes, "write_audit_log", lambda *a, **kw: captured.update({"action": a[2], "metadata": kw.get("metadata")}))
+        resp = _fn(names_routes.admin_remediate_name)(_make_request(body={"name": "myname", "region": "wus2", "environment": "dev", "action": "orphan", "reason": "provider orphan"}))
+        assert resp.status_code == 200
+        assert table.updated["InUse"] is False
+        assert table.updated["ClaimState"] == "orphaned"
+        assert captured["action"] == "orphaned"
+        assert captured["metadata"]["StateAfter"] == "orphaned"
+
+    def test_purge_success(self, monkeypatch):
+        entity = {
+            "PartitionKey": "wus2-dev", "RowKey": "myname",
+            "ClaimedBy": "u1", "InUse": False, "ClaimState": "orphaned",
+            "ResourceType": "vm", "Slug": "vm",
+        }
+        table = FakeTable({("wus2-dev", "myname"): entity})
+        captured = {}
+        monkeypatch.setattr(names_routes, "require_role", lambda h, min_role: ("admin1", ["admin"]))
+        monkeypatch.setattr(names_routes, "get_table_client", lambda name: table)
+        monkeypatch.setattr(names_routes, "write_audit_log", lambda *a, **kw: captured.update({"action": a[2], "metadata": kw.get("metadata")}))
+        resp = _fn(names_routes.admin_remediate_name)(_make_request(body={"name": "myname", "region": "wus2", "environment": "dev", "action": "purge", "reason": "cleanup"}))
+        assert resp.status_code == 200
+        assert ("wus2-dev", "myname") not in table._entities
+        assert captured["action"] == "purged"
+        assert captured["metadata"]["StateBefore"] == "orphaned"
+        assert captured["metadata"]["StateAfter"] == "purged"

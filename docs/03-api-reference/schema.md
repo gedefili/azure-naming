@@ -44,7 +44,7 @@ Tracks all claims and releases for auditing.
 
 ### 3. `SlugMappings`
 
-Pulled from the [Azure terraform-azurerm-naming](https://github.com/Azure/terraform-azurerm-naming) project.
+Pulled from the [Microsoft Cloud Adoption Framework resource abbreviations](https://github.com/MicrosoftDocs/cloud-adoption-framework/blob/main/docs/ready/azure-best-practices/resource-abbreviations.md) and normalized to the naming service's canonical resource type identifiers.
 
 | Property       | Type     | Description                                  |
 | -------------- | -------- | -------------------------------------------- |
@@ -53,7 +53,7 @@ Pulled from the [Azure terraform-azurerm-naming](https://github.com/Azure/terraf
 | `Slug`         | string   | Duplicate of `RowKey`                        |
 | `ResourceType` | string   | Canonical identifier (e.g., `storage_account`) |
 | `FullName`     | string   | Human-readable label (e.g., `storage account`) |
-| `Source`       | string   | Origin of the mapping (e.g., `azure_defined_specs`) |
+| `Source`       | string   | Origin of the mapping (e.g., `microsoft_caf`) |
 | `UpdatedAt`    | ISO 8601 | When last updated                            |
 
 ---
