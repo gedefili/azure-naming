@@ -2,12 +2,12 @@
   "schema_version": "1.0",
   "platform_version": "3.4.0",
   "repo": "azure-naming",
-  "root": "/home/vscode/workspaces/azure-naming",
+  "root": "/workspaces/azure-naming",
   "description": "Azure Naming Function — secure, auditable Azure resource naming service",
 
   "allowed_paths": [
-    "/home/vscode/workspaces/azure-naming",
-    "/home/vscode/workspaces/agents-infra"
+    "/workspaces/azure-naming",
+    "/workspaces/agents-infra"
   ],
 
   "allowed_capabilities": [
