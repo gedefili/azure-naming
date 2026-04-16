@@ -13,6 +13,10 @@ import (
 
 var _ datasource.DataSource = (*SlugDataSource)(nil)
 
+var lookupSlugFunc = func(ctx context.Context, client *APIClient, resourceType string) (*SlugResponse, error) {
+	return client.LookupSlug(ctx, resourceType)
+}
+
 // NewSlugDataSource returns the slug lookup data source.
 func NewSlugDataSource() datasource.DataSource {
 	return &SlugDataSource{}
@@ -84,6 +88,17 @@ func (d *SlugDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 	d.client = client
 }
 
+func readSlug(ctx context.Context, client *APIClient, resourceType string) (*SlugResponse, error) {
+	slug, err := lookupSlugFunc(ctx, client, resourceType)
+	if err != nil {
+		return nil, err
+	}
+	if slug == nil {
+		return nil, fmt.Errorf("no slug mapping exists for resource type %q", resourceType)
+	}
+	return slug, nil
+}
+
 func (d *SlugDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	if d.client == nil {
 		resp.Diagnostics.AddError("Unconfigured provider", "The provider has not been configured; call provider block first.")
@@ -96,15 +111,9 @@ func (d *SlugDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	slug, err := d.client.LookupSlug(ctx, data.ResourceType.ValueString())
+	slug, err := readSlug(ctx, d.client, data.ResourceType.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to lookup slug", err.Error())
-		return
-	}
-
-	if slug == nil {
-		resp.Diagnostics.AddWarning("Slug not found", fmt.Sprintf("No slug mapping returned for resource type %s", data.ResourceType.ValueString()))
-		resp.State.RemoveResource(ctx)
 		return
 	}
 

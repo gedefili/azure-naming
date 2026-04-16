@@ -137,6 +137,23 @@ variable "az" {
         assert result["st"] == "storage_account"
         assert result["vm"] == "virtual_machine"
 
+    def test_applies_local_overrides(self, monkeypatch):
+        from adapters import slug_fetcher
+
+        class FakeResponse:
+            text = 'az = {\n  storage_account = "st"\n}\n'
+
+            def raise_for_status(self):
+                pass
+
+        monkeypatch.setattr(slug_fetcher.requests, "get", lambda url, timeout: FakeResponse())
+
+        result = slug_fetcher.get_all_remote_slugs()
+
+        assert result["app"] == "app_service"
+        assert result["cosmos"] == "cosmosdb_account"
+        assert result["sql"] == "sql_server"
+
     def test_fetch_failure(self, monkeypatch):
         from adapters import slug_fetcher
 

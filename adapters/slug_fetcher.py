@@ -10,6 +10,16 @@ import requests
 
 DEFINED_SPECS_URL = "https://raw.githubusercontent.com/Azure/terraform-azurerm-naming/master/docs/defined_specs"
 _pattern = re.compile(r"\s*(\w+)\s*=\s*\"([^\"]+)\"")
+LOCAL_SLUG_OVERRIDES = {
+    "app": "app_service",
+    "cr": "container_registry",
+    "cosmos": "cosmosdb_account",
+    "id": "managed_identity",
+    "pdnsz": "private_dns_zone",
+    "pip": "public_ip_address",
+    "sql": "sql_server",
+    "sqldb": "sql_database",
+}
 
 
 class SlugSourceError(RuntimeError):
@@ -37,6 +47,9 @@ def get_all_remote_slugs() -> Dict[str, str]:
         for match in _pattern.finditer(block_content):
             full_name, slug = match.groups()
             slug_map[slug] = full_name
+
+        for slug, resource_type in LOCAL_SLUG_OVERRIDES.items():
+            slug_map.setdefault(slug, resource_type)
 
         logging.info("Parsed %s slug mappings.", len(slug_map))
         return slug_map

@@ -6,6 +6,21 @@ All notable changes to the Azure Naming Function project will be documented in t
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`
 
 
+## [1.8.4] - 2026-04-16
+
+### Changed
+
+* Added an Azure DevOps `publish_provider` stage that publishes the `sanmar/naming` Terraform provider from `provider-v*` tags.
+* Documented the dedicated provider release flow so provider publishing no longer depends on manual local pushes to ACR.
+
+### Fixed
+
+* The Terraform provider now accepts `201 Created` on successful claims and `204 No Content` on successful releases.
+* The provider no longer reports a Terraform null object when a slug mapping is missing; it now returns an explicit diagnostic error.
+* Added local slug overrides for eight Azure resource types that were absent from the upstream slug source.
+* Fixed the provider HTTP retry path so `429 Too Many Requests` responses are retried instead of returned immediately.
+
+
 ## [1.8.3] - 2026-04-14
 
 ### Changed
