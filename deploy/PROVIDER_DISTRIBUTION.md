@@ -3,6 +3,21 @@
 This document describes the build, publish, and install workflow for the
 `sanmar/naming` Terraform provider distributed via Azure Container Registry (ACR).
 
+## CI/CD Release Flow
+
+Provider releases are now published by Azure DevOps when a tag matching
+`provider-v*` is pushed.
+
+1. Merge the provider change into `main` through a pull request.
+2. Create an annotated tag such as `provider-v1.2.0` on the merge commit.
+3. Push the tag.
+4. The `publish_provider` stage in `azure-pipelines.yml` logs into ACR and runs
+  `tools/publish_provider_acr.sh --version <tag-version>`.
+
+The existing `v*` application tags still drive source release artifacts and the
+dev container image. Provider publishing is isolated to `provider-v*` tags so
+application and provider versioning can evolve independently.
+
 ## Architecture
 
 ```
@@ -49,6 +64,13 @@ bash tools/publish_provider_acr.sh --version 1.0.0
 
 # Skip build, publish existing binary
 bash tools/publish_provider_acr.sh --skip-build
+```
+
+### Publishing via CI/CD
+
+```bash
+git tag -a provider-v1.2.0 -m "Release sanmar/naming v1.2.0"
+git push origin provider-v1.2.0
 ```
 
 ### Pulling (from tools-iac)

@@ -5,8 +5,8 @@
 # Purpose: Build and publish the sanmar/naming Terraform provider to ACR as an OCI artifact
 # Author: SanMar Platform Team
 # Created: 2026-04-13
-# Last-Modified: 2026-04-14
-# Version: 1.1.0
+# Last-Modified: 2026-04-16
+# Version: 1.2.0
 # Execution-Context: container
 # Category: naming
 #
