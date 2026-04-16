@@ -51,7 +51,7 @@ There are two Postman collections available:
 1. **Run "Slug Sync (POST)" first** — This populates the `SlugMappings` table with slug definitions for all resource types
    - This is an admin operation and must be run before claiming names
    - Without this, all "Claim Name" requests will fail with `ValueError: Slug not found`
-   - **Note:** Slug Sync fetches definitions from GitHub (`Azure/terraform-azurerm-naming` repo). If the sync reports "0 entries updated/created", check:
+   - **Note:** Slug Sync fetches definitions from GitHub using the Microsoft Cloud Adoption Framework resource abbreviation table. If the sync reports "0 entries updated/created", check:
      - Network connectivity (GitHub must be reachable)
      - If offline/no internet, see [Local Development Without GitHub](#local-development-without-github) below
 2. **Then run "Slug Lookup"** — Verify the slug was synced correctly
@@ -180,7 +180,7 @@ newman run docs/04-development/postman-local-collection.json \
 
 ### Valid Resource Types
 
-The Azure Naming API supports 86 resource types from the official [Azure Terraform naming repository](https://github.com/Azure/terraform-azurerm-naming). Common examples include:
+The Azure Naming API syncs resource abbreviations from the official [Microsoft Cloud Adoption Framework resource abbreviation table](https://github.com/MicrosoftDocs/cloud-adoption-framework/blob/main/docs/ready/azure-best-practices/resource-abbreviations.md), then applies local overrides so the service keeps its canonical resource type identifiers. Common examples include:
 
 - `storage_account` → `st`
 - `cosmos` → `cosmos_db`
