@@ -1,0 +1,80 @@
+{
+  "description": "Pilot seed manifest for azure-naming service concern (prd environment). These are the 6 existing resources that need to be registered in the naming registry before terraform import.",
+  "task": "461800",
+  "story": "461799",
+  "concern": "sanmar/applications/internal/azure-naming/service",
+  "claims": [
+    {
+      "name": "wus2-prd-rg-aznaming",
+      "resource_type": "resource_group",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_resource_group.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing resource group before naming cutover pilot"
+    },
+    {
+      "name": "wus2prdstsanmaraznaming",
+      "resource_type": "storage_account",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_storage_account.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing storage account before naming cutover pilot"
+    },
+    {
+      "name": "wus2-prd-law-aznaming",
+      "resource_type": "log_analytics_workspace",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_log_analytics_workspace.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing log analytics workspace before naming cutover pilot"
+    },
+    {
+      "name": "wus2-prd-appi-aznaming",
+      "resource_type": "application_insights",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_application_insights.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing application insights before naming cutover pilot"
+    },
+    {
+      "name": "wus2-prd-plan-aznaming",
+      "resource_type": "service_plan",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_service_plan.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing service plan before naming cutover pilot"
+    },
+    {
+      "name": "wus2-prd-fn-aznaming",
+      "resource_type": "function_app",
+      "region": "wus2",
+      "environment": "prd",
+      "system": "aznaming",
+      "ownership_status": "identified",
+      "import_source": "terraform_state",
+      "import_reference": "azurerm_linux_function_app.this",
+      "claimed_by": "platform-team",
+      "reason": "Grandfather existing function app before naming cutover pilot"
+    }
+  ]
+}
