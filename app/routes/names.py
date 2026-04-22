@@ -17,12 +17,16 @@ from app.constants import NAMES_TABLE_NAME
 from app.errors import handle_name_generation_error
 from app.models import (
     AdminNameStateRequest,
+    ClaimReportEntry,
+    ClaimReportResponse,
+    GrandfatherClaimRequest,
+    GrandfatherClaimResponse,
     MessageResponse,
     NameClaimRequest,
     NameClaimResponse,
     ReleaseRequest,
 )
-from app.responses import build_claim_response, json_message
+from app.responses import build_claim_response, json_message, json_payload
 from app.dependencies import (
     AuthError,
     generate_and_claim_name,
@@ -337,3 +341,290 @@ def admin_remediate_name(req: func.HttpRequest) -> func.HttpResponse:
 
     write_audit_log(name, user_id, "purged", reason, metadata=metadata)
     return json_message("Name claim purged successfully.", status_code=200)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/claims/grandfather — Admin-only grandfathered name adoption
+# ---------------------------------------------------------------------------
+
+@app.function_name(name="admin_grandfather_claim")
+@app.route(route="claims/grandfather", methods=[func.HttpMethod.POST])
+@openapi_doc(
+    summary="Adopt an existing Azure name as a grandfathered claim",
+    description=(
+        "Admin-only endpoint that reserves an already-deployed Azure resource name "
+        "in the naming registry. The name is stored as a grandfathered claim with "
+        "compliance evaluation but without rejecting non-compliant legacy names."
+    ),
+    tags=["Names"],
+    request_model=GrandfatherClaimRequest,
+    response_model=GrandfatherClaimResponse,
+    operation_id="adminGrandfatherClaim",
+    route="/claims/grandfather",
+    method="post",
+)
+def admin_grandfather_claim(req: func.HttpRequest) -> func.HttpResponse:
+    """Adopt an existing Azure name as a grandfathered claim."""
+
+    logging.info("[admin_grandfather_claim] Processing grandfathered claim request.")
+
+    try:
+        user_id, _roles = require_role(req.headers, min_role="admin")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        return func.HttpResponse("Invalid JSON payload.", status_code=400)
+
+    # --- Extract and validate required fields ---
+    name = (data.get("name") or "").strip().lower()
+    resource_type = (data.get("resource_type") or data.get("resourceType") or "").strip().lower()
+    region = (data.get("region") or "").strip().lower()
+    environment = (data.get("environment") or "").strip().lower()
+    ownership_status = (data.get("ownership_status") or data.get("ownershipStatus") or "").strip().lower()
+    import_source = (data.get("import_source") or data.get("importSource") or "").strip().lower()
+    reason = (data.get("reason") or "").strip()
+
+    if not name:
+        return func.HttpResponse("Missing required field: name.", status_code=400)
+    if not resource_type:
+        return func.HttpResponse("Missing required field: resource_type.", status_code=400)
+    if not region:
+        return func.HttpResponse("Missing required field: region.", status_code=400)
+    if not environment:
+        return func.HttpResponse("Missing required field: environment.", status_code=400)
+    if ownership_status not in {"identified", "unknown"}:
+        return func.HttpResponse(
+            "Field 'ownership_status' must be 'identified' or 'unknown'.",
+            status_code=400,
+        )
+    if import_source not in {"azure_inventory", "terraform_state", "manual", "manifest"}:
+        return func.HttpResponse(
+            "Field 'import_source' must be one of: azure_inventory, terraform_state, manual, manifest.",
+            status_code=400,
+        )
+    if not reason:
+        return func.HttpResponse("Missing required field: reason.", status_code=400)
+
+    partition_key = f"{region}-{environment}"
+
+    # --- Check for existing claim (idempotent or conflict) ---
+    names_table = get_table_client(NAMES_TABLE_NAME)
+    existing = None
+    try:
+        existing = names_table.get_entity(partition_key=partition_key, row_key=name)
+    except Exception:
+        pass  # Entity does not exist — expected for new adoptions
+
+    if existing is not None:
+        # Idempotent: if already grandfathered with same resource type, return success
+        if (
+            existing.get("Grandfathered") is True
+            and (existing.get("ResourceType") or "").lower() == resource_type
+        ):
+            return json_payload(
+                {
+                    "name": name,
+                    "resourceType": resource_type,
+                    "region": region,
+                    "environment": environment,
+                    "grandfathered": True,
+                    "complianceStatus": existing.get("ComplianceStatus", "unknown"),
+                    "ownershipStatus": existing.get("OwnershipStatus", "unknown"),
+                    "claimedBy": existing.get("ClaimedBy"),
+                    "importSource": existing.get("ImportSource", ""),
+                    "message": "Name is already registered as a grandfathered claim.",
+                },
+                status_code=200,
+            )
+        # Conflict: existing claim with different resource type
+        return func.HttpResponse(
+            f"Name '{name}' already exists in the registry with resource type '{existing.get('ResourceType')}'.",
+            status_code=409,
+        )
+
+    # --- Evaluate compliance (informational, not blocking) ---
+    compliance_status = "unknown"
+    try:
+        from core.naming_rules import load_naming_rule
+        from core.validation import validate_name
+
+        rule = load_naming_rule(resource_type)
+        validate_name(name, rule)
+        compliance_status = "compliant"
+    except Exception:
+        compliance_status = "noncompliant"
+
+    # --- Build and persist the grandfathered entity ---
+    claimed_by = (data.get("claimed_by") or data.get("claimedBy") or "").strip().lower() or None
+    now = datetime.now(tz=timezone.utc).isoformat()
+
+    entity: Dict[str, Any] = {
+        "PartitionKey": partition_key,
+        "RowKey": name,
+        "InUse": True,
+        "ResourceType": resource_type,
+        "ClaimedBy": claimed_by or user_id,
+        "ClaimedAt": now,
+        "ClaimState": "claimed",
+        "StateChangedAt": now,
+        "StateChangedBy": user_id,
+        "StateVersion": 1,
+        "LastLifecycleAction": "grandfathered",
+        "Grandfathered": True,
+        "AdoptionMode": "grandfathered",
+        "ComplianceStatus": compliance_status,
+        "OwnershipStatus": ownership_status,
+        "ImportSource": import_source,
+        "ImportedAt": now,
+        "ImportedBy": user_id,
+        "RequestedBy": user_id,
+    }
+
+    # Optional metadata fields
+    for field in ("project", "purpose", "subsystem", "system", "index"):
+        value = (data.get(field) or "").strip()
+        if value:
+            entity[field.capitalize()] = value
+
+    import_reference = (data.get("import_reference") or data.get("importReference") or "").strip()
+    if import_reference:
+        entity["ImportReference"] = import_reference
+
+    legacy_metadata = data.get("legacy_metadata") or data.get("legacyMetadata")
+    if legacy_metadata and isinstance(legacy_metadata, dict):
+        entity["LegacyMetadata"] = str(_sanitize_metadata_dict(legacy_metadata))
+
+    try:
+        names_table.create_entity(entity=entity)
+    except Exception:
+        logging.exception("[admin_grandfather_claim] Failed to persist grandfathered claim.")
+        return func.HttpResponse("Error creating grandfathered claim.", status_code=500)
+
+    # --- Write audit log ---
+    audit_metadata: Dict[str, Any] = {
+        "Region": region,
+        "Environment": environment,
+        "ResourceType": resource_type,
+        "ComplianceStatus": compliance_status,
+        "OwnershipStatus": ownership_status,
+        "ImportSource": import_source,
+        "StateBefore": "none",
+        "StateAfter": "claimed",
+        "Reason": reason,
+        "Grandfathered": True,
+    }
+    if import_reference:
+        audit_metadata["ImportReference"] = import_reference
+
+    write_audit_log(name, user_id, "grandfathered", reason, metadata=_sanitize_metadata_dict(audit_metadata))
+
+    return json_payload(
+        {
+            "name": name,
+            "resourceType": resource_type,
+            "region": region,
+            "environment": environment,
+            "grandfathered": True,
+            "complianceStatus": compliance_status,
+            "ownershipStatus": ownership_status,
+            "claimedBy": claimed_by or user_id,
+            "importSource": import_source,
+            "message": "Name adopted as a grandfathered claim.",
+        },
+        status_code=201,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/claims/report — Admin-only compliance report
+# ---------------------------------------------------------------------------
+
+@app.function_name(name="admin_claims_report")
+@app.route(route="claims/report", methods=[func.HttpMethod.GET])
+@openapi_doc(
+    summary="Report on current claim inventory",
+    description=(
+        "Admin-only endpoint returning an inventory of claims from the names table "
+        "with optional filters for grandfathered status, compliance, region, environment, "
+        "and resource type."
+    ),
+    tags=["Names"],
+    response_model=ClaimReportResponse,
+    operation_id="adminClaimsReport",
+    route="/claims/report",
+    method="get",
+)
+def admin_claims_report(req: func.HttpRequest) -> func.HttpResponse:
+    """Return a filtered inventory of claims for compliance reporting."""
+
+    logging.info("[admin_claims_report] Processing claims report request.")
+
+    try:
+        user_id, _roles = require_role(req.headers, min_role="admin")
+    except AuthError as exc:
+        return func.HttpResponse(str(exc), status_code=exc.status)
+
+    # --- Build OData filter from query params ---
+    filters: list[str] = []
+
+    grandfathered = (req.params.get("grandfathered") or "").lower()
+    if grandfathered == "true":
+        filters.append("Grandfathered eq true")
+    elif grandfathered == "false":
+        filters.append("(Grandfathered eq false or Grandfathered eq null)")
+
+    compliance_status = (req.params.get("compliance_status") or "").lower()
+    if compliance_status in {"compliant", "noncompliant", "unknown"}:
+        filters.append(f"ComplianceStatus eq '{compliance_status}'")
+
+    region = (req.params.get("region") or "").lower()
+    environment = (req.params.get("environment") or "").lower()
+    if region and environment:
+        filters.append(f"PartitionKey eq '{region}-{environment}'")
+    elif region:
+        filters.append(f"PartitionKey ge '{region}-' and PartitionKey lt '{region}.'")
+
+    resource_type = (req.params.get("resource_type") or "").lower()
+    if resource_type:
+        filters.append(f"ResourceType eq '{resource_type}'")
+
+    ownership_status = (req.params.get("ownership_status") or "").lower()
+    if ownership_status in {"identified", "unknown"}:
+        filters.append(f"OwnershipStatus eq '{ownership_status}'")
+
+    odata_filter = " and ".join(filters) if filters else None
+
+    # --- Query the names table ---
+    try:
+        names_table = get_table_client(NAMES_TABLE_NAME)
+        if odata_filter:
+            entities = list(names_table.query_entities(query_filter=odata_filter))
+        else:
+            entities = list(names_table.list_entities())
+    except Exception:
+        logging.exception("[admin_claims_report] Failed to query names table.")
+        return func.HttpResponse("Error querying claims.", status_code=500)
+
+    results = []
+    for entity in entities:
+        pk = str(entity.get("PartitionKey") or "")
+        r, _, e = pk.partition("-")
+        results.append(
+            {
+                "name": entity.get("RowKey", ""),
+                "resourceType": entity.get("ResourceType"),
+                "region": r or None,
+                "environment": e or None,
+                "claimState": entity.get("ClaimState"),
+                "grandfathered": bool(entity.get("Grandfathered", False)),
+                "complianceStatus": entity.get("ComplianceStatus"),
+                "ownershipStatus": entity.get("OwnershipStatus"),
+                "claimedBy": entity.get("ClaimedBy"),
+                "inUse": bool(entity.get("InUse", False)),
+            }
+        )
+
+    return json_payload({"total": len(results), "results": results})
