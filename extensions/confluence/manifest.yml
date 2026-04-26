@@ -1,0 +1,52 @@
+modules:
+  macro:
+    - key: claim-name-macro
+      function: macro-fn
+      title: Claim Azure Name
+      description: Embed an Azure resource name claim in this page
+      icon: https://aznaming.sanmar.com/favicon.svg
+      config:
+        function: config-fn
+  function:
+    - key: macro-fn
+      handler: index.macroHandler
+    - key: config-fn
+      handler: index.configHandler
+    - key: resolver-fn
+      handler: index.resolverHandler
+
+resolvers:
+  - key: naming-resolver
+    function: resolver-fn
+
+permissions:
+  scopes:
+    - read:page:confluence
+    - write:page.property:confluence
+    - read:user:confluence
+  external:
+    fetch:
+      backend:
+        # Wildcard pinned to api Gateway / Function App custom domain.
+        - https://aznaming.sanmar.com
+        - https://login.microsoftonline.com
+
+app:
+  runtime:
+    name: nodejs20.x
+  id: ari:cloud:ecosystem::app/SANMAR_NAMING
+
+environment:
+  variables:
+    NAMING_API_BASE_URL:
+      description: Base URL for the Azure Naming Service API
+      required: true
+    ENTRA_TENANT_ID:
+      description: Microsoft Entra tenant ID
+      required: true
+    ENTRA_CLIENT_ID:
+      description: Forge backend service-principal client ID
+      required: true
+    NAMING_API_RESOURCE:
+      description: api://<naming-api-client-id>
+      required: true
