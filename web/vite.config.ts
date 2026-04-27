@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
       globals: true,
       setupFiles: ["./src/test-setup.ts"],
       css: false,
+      include: ["src/**/*.test.{ts,tsx}"],
+      exclude: ["node_modules/**", "dist/**", "tests/e2e/**"],
       coverage: {
         provider: "v8",
         reporter: ["text", "html", "json-summary", "lcov"],

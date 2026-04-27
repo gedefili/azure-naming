@@ -11,6 +11,15 @@ parameters:
   - name: devcontainerVersion
     type: string
     default: ''
+  - name: deployWeb
+    type: boolean
+    default: true
+  - name: deployForge
+    type: boolean
+    default: true
+  - name: confluenceSite
+    type: string
+    default: ''
 
 trigger:
   branches:
@@ -20,11 +29,20 @@ trigger:
     include:
       - v*
       - provider-v*
+      - web-v*
+      - forge-v*
 
 pr:
   branches:
     include:
       - main
+
+resources:
+  repositories:
+    - repository: yaml
+      type: git
+      name: yaml-iac
+      ref: refs/heads/main
 
 variables:
   - group: azure-naming-shared
@@ -65,6 +83,34 @@ stages:
               PathtoPublish: coverage-summary.json
               ArtifactName: coverage-summary
               publishLocation: Container
+
+  - stage: web_validate
+    displayName: Web SPA build, test, screenshots
+    dependsOn: []
+    jobs:
+      - template: pipelines/templates/jobs/web-spa-build-test.yml@yaml
+        parameters:
+          jobName: web
+          workingDirectory: web
+          legacyPeerDeps: true
+          coveragePath: web/coverage
+          coverageArtifact: web-coverage
+          distArtifact: web-dist
+          distPath: web/dist
+          captureScreenshots: true
+
+  - stage: forge_validate
+    displayName: Confluence Forge build, test
+    dependsOn: []
+    jobs:
+      - template: pipelines/templates/jobs/forge-build-test.yml@yaml
+        parameters:
+          jobName: forge
+          workingDirectory: extensions/confluence
+          legacyPeerDeps: true
+          coveragePath: extensions/confluence/coverage
+          coverageArtifact: forge-coverage
+          distArtifact: forge-dist
 
   - stage: deploy
     displayName: Deploy function app
@@ -393,3 +439,32 @@ stages:
 
                   npx newman@6 run tests/postman_collection.json -e /tmp/env.json --insecure
                 displayName: Run Postman collection
+  # ---------------------------------------------------------------------------
+  # Naming Experience release pipeline.
+  # Triggers only on web-v* / forge-v* tags (or explicit run with deployWeb /
+  # deployForge true). Downloads the artifacts published by the validate stages
+  # and pushes them to Static Web Apps + Atlassian Forge respectively.
+  # ---------------------------------------------------------------------------
+  - ${{ if or(eq(parameters.deployWeb, true), eq(parameters.deployForge, true)) }}:
+      - template: pipelines/templates/stages/release-naming-experience.yml@yaml
+        parameters:
+          dependsOn:
+            - web_validate
+            - forge_validate
+          webDistArtifact: web-dist
+          forgeDistArtifact: forge-dist
+          environmentName: naming-prod
+          swaDeploymentTokenVar: swaDeploymentToken
+          forgeEmailVar: forgeEmail
+          forgeApiTokenVar: forgeApiToken
+          confluenceSite: ${{ parameters.confluenceSite }}
+          forgeEnvironment: production
+          condition: |
+            and(
+              succeeded(),
+              ne(variables['Build.Reason'], 'PullRequest'),
+              or(
+                startsWith(variables['Build.SourceBranch'], 'refs/tags/web-v'),
+                startsWith(variables['Build.SourceBranch'], 'refs/tags/forge-v')
+              )
+            )
