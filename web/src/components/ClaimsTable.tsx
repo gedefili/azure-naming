@@ -1,3 +1,4 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/components/ClaimsTable.tsx
@@ -8,6 +9,7 @@
  * Version: 0.1.0
  */
 import { type ClaimSummary } from "../api/client";
+import { StateBadge } from "./StateBadge";
 
 interface ClaimsTableProps {
   items: ClaimSummary[];
@@ -16,13 +18,7 @@ interface ClaimsTableProps {
   onPurge?: (claim: ClaimSummary) => void;
 }
 
-function StateBadge({ state }: { state?: string }): JSX.Element {
-  const s = (state ?? "released").toLowerCase();
-  const cls = s === "claimed" ? "claimed" : s === "orphaned" ? "orphaned" : "released";
-  return <span className={`badge ${cls}`}>{s}</span>;
-}
-
-export function ClaimsTable({ items, showOwner, onRelease, onPurge }: ClaimsTableProps): JSX.Element {
+export function ClaimsTable({ items, showOwner, onRelease, onPurge }: ClaimsTableProps): React.JSX.Element {
   if (items.length === 0) {
     return (
       <div className="empty-state">

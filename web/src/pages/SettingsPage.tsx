@@ -1,3 +1,4 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/pages/SettingsPage.tsx
@@ -11,7 +12,7 @@ import { useTheme } from "../theme/ThemeProvider";
 import { deriveHue } from "../theme/theme";
 import { useMsal } from "@azure/msal-react";
 
-export function SettingsPage(): JSX.Element {
+export function SettingsPage(): React.JSX.Element {
   const { mode, setMode, hue, setHue, resolvedMode } = useTheme();
   const { accounts } = useMsal();
   const username = accounts[0]?.username;

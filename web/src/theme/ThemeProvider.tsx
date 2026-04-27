@@ -1,11 +1,12 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/theme/ThemeProvider.tsx
- * Purpose: React provider for runtime theme tokens
+ * Purpose: React provider that owns theme mode + hue and applies CSS tokens
  * Author: GitHub Copilot
  * Created: 2026-04-26
- * Last-Modified: 2026-04-26
- * Version: 0.1.0
+ * Last-Modified: 2026-04-27
+ * Version: 0.2.0
  */
 import {
   createContext,
@@ -23,8 +24,15 @@ import {
   resolveMode,
   type ThemeMode,
 } from "./theme";
+import {
+  getDefaultStorage,
+  readEnum,
+  readInt,
+  writeString,
+  type StorageLike,
+} from "../lib/storage";
 
-interface ThemeContextValue {
+export interface ThemeContextValue {
   mode: ThemeMode;
   setMode: (m: ThemeMode) => void;
   hue: number;
@@ -34,57 +42,72 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const MODE_KEY = "aznaming.themeMode";
-const HUE_KEY = "aznaming.themeHue";
+export const MODE_KEY = "aznaming.themeMode";
+export const HUE_KEY = "aznaming.themeHue";
+
+const ALLOWED_MODES: readonly ThemeMode[] = ["auto", "light", "dark"];
+
+export interface ThemeProviderProps {
+  seed: string | undefined;
+  children: ReactNode;
+  /** Inject for tests / SSR. */
+  storage?: StorageLike;
+}
 
 export function ThemeProvider({
   seed,
   children,
-}: {
-  seed: string | undefined;
-  children: ReactNode;
-}): JSX.Element {
-  const [mode, setModeState] = useState<ThemeMode>(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem(MODE_KEY) : null;
-    if (stored === "light" || stored === "dark" || stored === "auto") return stored;
-    return "auto";
-  });
+  storage,
+}: ThemeProviderProps): React.JSX.Element {
+  const store = useMemo(() => storage ?? getDefaultStorage(), [storage]);
 
   const defaultHue = useMemo(() => deriveHue(seed ?? "anonymous"), [seed]);
 
-  const [hue, setHueState] = useState<number>(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem(HUE_KEY) : null;
-    if (stored && !Number.isNaN(Number(stored))) return Number(stored);
-    return defaultHue;
-  });
+  const [mode, setModeState] = useState<ThemeMode>(() =>
+    readEnum<ThemeMode>(store, MODE_KEY, ALLOWED_MODES, "auto"),
+  );
 
-  const [resolvedMode, setResolvedMode] = useState<"light" | "dark">(() => resolveMode(mode));
+  const [hue, setHueState] = useState<number>(() =>
+    readInt(store, HUE_KEY, defaultHue, 0, 360),
+  );
+
+  const [resolvedMode, setResolvedMode] = useState<"light" | "dark">(() =>
+    resolveMode(mode),
+  );
 
   useEffect(() => {
-    const next = resolveMode(mode);
-    setResolvedMode(next);
+    setResolvedMode(resolveMode(mode));
     if (mode !== "auto") return;
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mql = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => setResolvedMode(mql.matches ? "dark" : "light");
+    const handler = (): void => setResolvedMode(mql.matches ? "dark" : "light");
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
   }, [mode]);
 
   useEffect(() => {
     applyTokens(buildTokens(resolvedMode, hue));
-    document.documentElement.dataset.theme = resolvedMode;
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.theme = resolvedMode;
+    }
   }, [resolvedMode, hue]);
 
-  const setMode = useCallback((m: ThemeMode) => {
-    window.localStorage.setItem(MODE_KEY, m);
-    setModeState(m);
-  }, []);
+  const setMode = useCallback(
+    (m: ThemeMode) => {
+      writeString(store, MODE_KEY, m);
+      setModeState(m);
+    },
+    [store],
+  );
 
-  const setHue = useCallback((h: number) => {
-    window.localStorage.setItem(HUE_KEY, String(h));
-    setHueState(h);
-  }, []);
+  const setHue = useCallback(
+    (h: number) => {
+      const clamped = Math.max(0, Math.min(360, Math.round(h)));
+      writeString(store, HUE_KEY, String(clamped));
+      setHueState(clamped);
+    },
+    [store],
+  );
 
   const value = useMemo(
     () => ({ mode, setMode, hue, setHue, resolvedMode }),

@@ -1,3 +1,4 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/pages/MyClaimsPage.tsx
@@ -17,7 +18,7 @@ import { ClaimsTable } from "../components/ClaimsTable";
 import { ClaimDrawer } from "../components/ClaimDrawer";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
-export function MyClaimsPage(): JSX.Element {
+export function MyClaimsPage(): React.JSX.Element {
   const api = useApiClient();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");

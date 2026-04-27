@@ -1,13 +1,15 @@
 /*
  * Repository: azure-naming
  * Path: extensions/confluence/src/index.tsx
- * Purpose: Forge UI Kit macro and resolver entrypoints for the Azure Naming claim macro
+ * Purpose: Forge UI Kit macro and resolver entrypoints for the Naming claim macro
  * Author: GitHub Copilot
  * Created: 2026-04-26
- * Last-Modified: 2026-04-26
- * Version: 0.1.0
+ * Last-Modified: 2026-04-27
+ * Version: 0.2.0
  */
-import ForgeUI, {
+import React, {
+  // ForgeUI is the namespace import retained for the JSX runtime hint.
+  default as ForgeUI,
   render,
   Macro,
   MacroConfig,
@@ -25,6 +27,8 @@ import ForgeUI, {
 } from "@forge/ui";
 import Resolver from "@forge/resolver";
 import { callNamingApi } from "./api";
+import { sanitizeErrorBody } from "./http";
+import { createClaim, listClaims, releaseClaim } from "./resolvers";
 
 interface MacroConfigShape {
   resourceType?: string;
@@ -38,9 +42,6 @@ interface ClaimSummary {
   resource_type?: string;
   region?: string;
   environment?: string;
-  claimed_by?: string;
-  claimed_at?: string;
-  in_use?: boolean;
 }
 
 const Config = (): unknown => (
@@ -67,9 +68,13 @@ const App = (): unknown => {
   const [error, setError] = useState<string | null>(null);
 
   const onClaim = async (): Promise<void> => {
+    if (!config.resourceType || !config.region || !config.environment) {
+      setError("Please configure resource type, region, and environment.");
+      return;
+    }
     try {
       setError(null);
-      const result = await callNamingApi<ClaimSummary>("/api/claim", {
+      const result = await callNamingApi<ClaimSummary>("/claim", {
         method: "POST",
         body: {
           resource_type: config.resourceType,
@@ -81,7 +86,7 @@ const App = (): unknown => {
       });
       setClaim(result);
     } catch (e) {
-      setError(String(e));
+      setError(sanitizeErrorBody(e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -115,25 +120,22 @@ const App = (): unknown => {
 };
 
 export const macroHandler = render(<Macro app={<App />} />);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const configHandler = render(<Config />);
 
 const resolver = new Resolver();
+const api = { call: callNamingApi };
 
-resolver.define("listClaims", async ({ payload }) => {
-  const { region, environment, query } = (payload ?? {}) as Record<string, string | undefined>;
-  return callNamingApi("/api/claims", { query: { region, environment, q: query, owner: "all" } });
-});
+resolver.define("listClaims", async ({ payload }) =>
+  listClaims(api, (payload ?? null) as Parameters<typeof listClaims>[1]),
+);
 
-resolver.define("claim", async ({ payload }) => {
-  return callNamingApi("/api/claim", { method: "POST", body: payload });
-});
+resolver.define("claim", async ({ payload }) =>
+  createClaim(api, payload as Parameters<typeof createClaim>[1]),
+);
 
-resolver.define("release", async ({ payload }) => {
-  const { name, region, environment, reason } = payload as Record<string, string>;
-  return callNamingApi(`/api/claim/${encodeURIComponent(name)}`, {
-    method: "DELETE",
-    query: { region, environment, reason },
-  });
-});
+resolver.define("release", async ({ payload }) =>
+  releaseClaim(api, payload as Parameters<typeof releaseClaim>[1]),
+);
 
 export const resolverHandler = resolver.getDefinitions();

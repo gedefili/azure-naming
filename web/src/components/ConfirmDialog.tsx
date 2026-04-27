@@ -1,3 +1,4 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/components/ConfirmDialog.tsx
@@ -27,7 +28,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   busy,
-}: ConfirmDialogProps): JSX.Element | null {
+}: ConfirmDialogProps): React.JSX.Element | null {
   const [typed, setTyped] = useState("");
   const [reason, setReason] = useState("");
 

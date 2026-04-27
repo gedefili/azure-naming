@@ -22,7 +22,7 @@ import "./styles/global.css";
 // Optionally enable login state persistence across page reloads
 msalInstance.addEventCallback((event: EventMessage) => {
   if (event.eventType === EventType.LOGIN_SUCCESS && event.payload && "account" in event.payload) {
-    msalInstance.setActiveAccount(event.payload.account);
+    msalInstance.setActiveAccount(event.payload.account ?? null);
   }
 });
 

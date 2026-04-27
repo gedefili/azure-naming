@@ -1,11 +1,11 @@
 /*
  * Repository: azure-naming
  * Path: web/src/auth/useAccessToken.ts
- * Purpose: Hook that acquires an access token for the Naming Service API
+ * Purpose: React hooks that bridge MSAL state to the API client and UI
  * Author: GitHub Copilot
  * Created: 2026-04-26
- * Last-Modified: 2026-04-26
- * Version: 0.1.0
+ * Last-Modified: 2026-04-27
+ * Version: 0.2.0
  */
 import { useCallback } from "react";
 import {
@@ -14,7 +14,18 @@ import {
 } from "@azure/msal-browser";
 import { useMsal } from "@azure/msal-react";
 import { apiTokenRequest } from "./msalConfig";
+import { isAdmin, parseRoles } from "./roles";
 
+/**
+ * Returns an async token provider for the Naming Service API.  The provider
+ * resolves to:
+ *
+ * - `string` — a fresh access token
+ * - `null`    — there is no signed-in account, **or** an interactive redirect
+ *               was just initiated (the page is about to navigate away)
+ *
+ * Other errors propagate so React Query can surface them.
+ */
 export function useAccessToken(): () => Promise<string | null> {
   const { instance, accounts } = useMsal();
 
@@ -29,10 +40,7 @@ export function useAccessToken(): () => Promise<string | null> {
       return result.accessToken;
     } catch (err) {
       if (err instanceof InteractionRequiredAuthError) {
-        await instance.acquireTokenRedirect({
-          ...apiTokenRequest,
-          account,
-        });
+        await instance.acquireTokenRedirect({ ...apiTokenRequest, account });
         return null;
       }
       throw err;
@@ -42,17 +50,9 @@ export function useAccessToken(): () => Promise<string | null> {
 
 export function useUserRoles(): string[] {
   const { accounts } = useMsal();
-  const account = accounts[0];
-  if (!account || !account.idTokenClaims) return [];
-  const claims = account.idTokenClaims as Record<string, unknown>;
-  const roles = claims.roles;
-  if (Array.isArray(roles)) return roles.filter((r): r is string => typeof r === "string");
-  return [];
+  return parseRoles(accounts[0]?.idTokenClaims);
 }
 
 export function useIsAdmin(): boolean {
-  const roles = useUserRoles();
-  return roles.some((r) =>
-    ["admin", "sanmar-naming-admin", "sanmar.naming.admin"].includes(r.toLowerCase()),
-  );
+  return isAdmin(useUserRoles());
 }

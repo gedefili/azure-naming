@@ -1,3 +1,4 @@
+import type * as React from "react";
 /*
  * Repository: azure-naming
  * Path: web/src/components/ClaimDrawer.tsx
@@ -18,13 +19,13 @@ interface ClaimDrawerProps {
   onClose: () => void;
 }
 
-export function ClaimDrawer({ open, onClose }: ClaimDrawerProps): JSX.Element | null {
+export function ClaimDrawer({ open, onClose }: ClaimDrawerProps): React.JSX.Element | null {
   const api = useApiClient();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: api.claim,
+    mutationFn: (body: Parameters<typeof api.claim>[0]) => api.claim(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["claims"] });
       onClose();

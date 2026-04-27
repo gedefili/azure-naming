@@ -81,18 +81,31 @@ export function buildTokens(mode: "light" | "dark", hue: number): ThemeTokens {
   };
 }
 
-export function applyTokens(tokens: ThemeTokens): void {
-  const root = document.documentElement;
+/** Convert `surfaceBase` → `--surface-base`.  Exposed for tests. */
+export function tokenToCssVar(key: string): string {
+  return "--" + key.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
+}
+
+export function applyTokens(
+  tokens: ThemeTokens,
+  target: HTMLElement | null = typeof document !== "undefined" ? document.documentElement : null,
+): void {
+  if (!target) return;
   for (const [key, value] of Object.entries(tokens)) {
-    const cssName = "--" + key.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
-    root.style.setProperty(cssName, value);
+    target.style.setProperty(tokenToCssVar(key), value);
   }
 }
 
-export function resolveMode(mode: ThemeMode): "light" | "dark" {
+export function resolveMode(
+  mode: ThemeMode,
+  matchMediaImpl?: (q: string) => MediaQueryList | { matches: boolean } | null,
+): "light" | "dark" {
   if (mode !== "auto") return mode;
-  if (typeof window !== "undefined" && window.matchMedia) {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "light";
+  const mm =
+    matchMediaImpl ??
+    (typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia.bind(window)
+      : undefined);
+  if (!mm) return "light";
+  return mm("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
 }
