@@ -20,6 +20,9 @@ parameters:
   - name: confluenceSite
     type: string
     default: ''
+  - name: confluenceScreenshotPageIds
+    type: string
+    default: ''
 
 trigger:
   branches:
@@ -458,6 +461,12 @@ stages:
           forgeEmailVar: forgeEmail
           forgeApiTokenVar: forgeApiToken
           confluenceSite: ${{ parameters.confluenceSite }}
+          confluenceBaseUrl: https://sanmar.atlassian.net
+          confluenceEmailVar: confluenceEmail
+          confluenceApiTokenVar: confluenceApiToken
+          confluenceScreenshotPageIds: ${{ parameters.confluenceScreenshotPageIds }}
+          confluenceScreenshotWorkingDir: forge-src
+          confluenceScreenshotScriptPath: scripts/capture-confluence-screenshots.mjs
           forgeEnvironment: production
           condition: |
             and(
