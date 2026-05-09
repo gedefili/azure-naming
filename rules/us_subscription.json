@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "US subscription overlay",
+    "priority": 100,
+    "enabled": true,
+    "description": "Naming rules for Azure subscriptions. Subscriptions are tenant-scoped (no region segment) and use a human-readable display name pattern: 'SanMar <System> <Environment>'."
+  },
+  "resources": {
+    "subscription": {
+      "max_length": 64,
+      "require_sanmar_prefix": true,
+      "segments": [
+        "slug",
+        "system",
+        "subsystem",
+        "environment",
+        "index"
+      ],
+      "display": [
+        { "key": "name", "label": "Subscription Name", "optional": false },
+        { "key": "resourceType", "label": "Resource Type", "optional": false },
+        { "key": "environment", "label": "Environment", "optional": false },
+        { "key": "system", "label": "System", "optional": false },
+        { "key": "index", "label": "Index" }
+      ],
+      "name_template": "{sanmar_prefix} {system_title} {environment_upper}",
+      "summary_template": "Subscription '{name}' for system '{system_upper}' in {environment_upper}",
+      "validators": {
+        "allowed_values": {
+          "environment": ["prd", "stg", "tst", "uat", "alt", "dev", "sbx"]
+        },
+        "require_any": {
+          "system": ["system", "system_short"]
+        }
+      }
+    }
+  }
+}
